@@ -835,7 +835,43 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                 Text((if (taskLocalDate(focusTask.dueDate)?.isBefore(today) == true) "Atrasada" else "Para hoy") + " · Prioridad " + focusTask.priority, color = Color(0xFFFFD18A), fontSize = 10.sp)
                                 TextButton(onClick = { tasks = tasks.map { if (it.id == focusTask.id) it.copy(completed = true) else it }; saveTasks(context, tasks); cancelJarvisReminder(context, focusTask.id) }) { Text("✓ Marcar como completada", color = cyan) }
                             }
-                            Text("Datos locales · sugerencia orientativa, no decisión automática.", color = Color(0xFF8FAABD), fontSize = 9.sp)
+                            Text("PLAN DE LOS PRÓXIMOS 7 DÍAS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            val weekDays = (0..6).map { today.plusDays(it.toLong()) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                weekDays.forEach { day ->
+                                    val count = tasks.count { !it.completed && taskLocalDate(it.dueDate) == day }
+                                    Surface(color = if (day == today) Color(0xFF24516A) else Color(0xFF183B52), shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
+                                        Column(Modifier.padding(vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(day.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("es", "PE")).take(2), color = Color(0xFFB8C9D8), fontSize = 9.sp)
+                                            Text(day.dayOfMonth.toString(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                            Text(count.toString(), color = cyan, fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("MODO CONCENTRACIÓN · 25 MIN", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text(String.format(Locale.ROOT, "%02d:%02d", focusSeconds / 60, focusSeconds % 60), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                                            Text("$focusSessions sesión(es) completada(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                                        }
+                                        Text(if (focusRunning) "EN CURSO" else if (focusSeconds == 0) "¡LISTO!" else "PAUSADO", color = if (focusRunning) Color(0xFF8FE4C0) else cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = { if (focusSeconds == 0) focusSeconds = 25 * 60; focusRunning = !focusRunning }, modifier = Modifier.weight(1f)) { Text(if (focusRunning) "Pausar" else if (focusSeconds == 0) "Otra sesión" else "Iniciar") }
+                                        OutlinedButton(onClick = { focusRunning = false; focusSeconds = 25 * 60 }, modifier = Modifier.weight(1f)) { Text("Reiniciar") }
+                                    }
+                                    Text("El contador funciona mientras JARVIS permanece abierto; no es una alarma en segundo plano.", color = Color(0xFF8FAABD), fontSize = 9.sp)
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.weight(1f)) { Text("+ Tarea rápida") }
+                                OutlinedButton(onClick = { goalTitle = ""; goalCategory = "Personal"; showGoalDialog = true }, modifier = Modifier.weight(1f)) { Text("+ Nueva meta") }
+                            }
+                            Text("Datos locales · sugerencias orientativas, no decisiones automáticas.", color = Color(0xFF8FAABD), fontSize = 9.sp)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
