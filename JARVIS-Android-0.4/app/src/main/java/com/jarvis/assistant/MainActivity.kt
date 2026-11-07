@@ -533,7 +533,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  2.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  2.8", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -569,7 +569,7 @@ fun Jarvis() {
                                     Text("MEMORIA LOCAL ACTIVA", color = Color(0xFFB8C9D8), fontSize = 9.sp, letterSpacing = 0.7.sp)
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text("VERSIÓN 2.7", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
+                                Text("VERSIÓN 2.8", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
                             }
                             if (showSettings) {
                                 TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan, fontSize = 12.sp) }
