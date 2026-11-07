@@ -142,6 +142,10 @@ fun Jarvis() {
     var pinError by remember { mutableStateOf("") }
     var pinConfigured by remember { mutableStateOf(hasSecurityPin(context)) }
     var memoryInput by remember { mutableStateOf("") }
+    var memorySearch by remember { mutableStateOf("") }
+    var pendingMemorySuggestion by remember { mutableStateOf("") }
+    var investigationReport by remember { mutableStateOf<InvestigationReport?>(null) }
+    var backupStatus by remember { mutableStateOf("") }
     var editingMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
@@ -161,6 +165,13 @@ fun Jarvis() {
                 knowledgeStatus = error.message ?: "No se pudo importar el documento."
             }
         }
+    }
+
+    val exportMemoryPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) try { context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)?.use { it.write(MemoryBackup.export(context)) } ?: throw IllegalArgumentException("No se pudo crear la copia."); backupStatus = "Copia exportada." } catch (error: Exception) { backupStatus = error.message ?: "Error al exportar." }
+    }
+    val importMemoryPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) try { val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: throw IllegalArgumentException("No se pudo leer la copia."); val added = MemoryBackup.import(context, content); memories = loadMemories(context); backupStatus = "Importados $added recuerdo(s); los existentes se conservaron." } catch (error: Exception) { backupStatus = error.message ?: "Error al importar." }
     }
 
     val extensionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -194,7 +205,11 @@ fun Jarvis() {
                 lower.startsWith("buscar en biblioteca") ||
                 lower.startsWith("consulta mi biblioteca") ||
                 lower.startsWith("encuentra en mi biblioteca")
-            val reply = if (searchIntent) {
+            val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
+            val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
+            val reply = if (memorySaveIntent) { val proposed = msg.substringAfter(":").trim(); if (proposed.isBlank()) "Escribe qué quieres guardar después de los dos puntos." else { pendingMemorySuggestion = proposed; "Te pediré confirmación antes de guardar este recuerdo." } }
+            else if (investigationIntent) { val query = msg.substringAfter("archivos", "").substringAfter("biblioteca", "").trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
+            else if (searchIntent) {
                 val query = msg.substringAfter("biblioteca", "").trim()
                     .removePrefix("de ").removePrefix("sobre ").removePrefix("acerca de ").trim()
                 if (query.isBlank()) {
@@ -248,7 +263,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  0.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  0.8", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -299,7 +314,11 @@ fun Jarvis() {
                                 }
                             }
                             Spacer(Modifier.height(8.dp))
-                            Button(onClick = { showMemoryDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Abrir memoria") }
+                            Button(onClick = { memorySearch = ""; showMemoryDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Abrir memoria") }
+                    Text("En el chat puedes escribir «guardar en memoria: …»; JARVIS pedirá permiso antes de guardarlo.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                    Button(onClick = { exportMemoryPicker.launch("jarvis-memoria.json") }, modifier = Modifier.fillMaxWidth()) { Text("Exportar copia de memoria") }
+                    OutlinedButton(onClick = { importMemoryPicker.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar copia") }
+                    if (backupStatus.isNotBlank()) Text(backupStatus, color = Color(0xFFFFD28A), fontSize = 11.sp)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
@@ -338,6 +357,12 @@ fun Jarvis() {
                                 knowledgeResults = KnowledgeLibrary.search(context, knowledgeQuery)
                                 knowledgeStatus = if (knowledgeQuery.isBlank()) "Escribe una palabra o frase para buscar." else "Coincidencias encontradas: ${knowledgeResults.size}"
                             }, enabled = knowledgeQuery.isNotBlank() && knowledgeDocs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Buscar") }
+                            Button(onClick = { try { investigationReport = LibraryInvestigator.investigate(context, knowledgeQuery); val report = investigationReport!!; knowledgeStatus = "${report.hits.size} fragmentos en ${report.matchedDocuments} documentos." } catch (error: Exception) { knowledgeStatus = error.message ?: "Error de investigación." } }, enabled = knowledgeQuery.isNotBlank() && knowledgeDocs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Investigar todos los archivos") }
+                            investigationReport?.let { report ->
+                                Text("Informe local · ${report.matchedDocuments}/${report.documentsScanned} documentos", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                report.hits.forEach { hit -> Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) { Text("${hit.document.name} · línea ${hit.lineNumber} · relevancia ${hit.score}", color = cyan, fontSize = 11.sp); Text(hit.excerpt, color = Color(0xFFB8C9D8), fontSize = 11.sp) } } }
+                                Text("Coincidencias de texto; aún no es síntesis semántica de IA.", color = Color(0xFFFFD28A), fontSize = 10.sp)
+                            }
                             knowledgeResults.forEach { match ->
                                 Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(10.dp)) {
@@ -485,7 +510,7 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 0.7 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 0.8 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
@@ -534,6 +559,8 @@ fun Jarvis() {
                         Spacer(Modifier.height(6.dp))
                         Text("Personal: preferencias. Proyectos: ideas y avances. Estudios: temas que aprendes. Metas: objetivos. Temporal: información útil por poco tiempo.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
                         Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(value = memorySearch, onValueChange = { memorySearch = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Buscar recuerdos") }, singleLine = true)
+                        Spacer(Modifier.height(8.dp))
                         Box {
                             OutlinedButton(onClick = { expandedMemoryCategory = true }) { Text("Sección: $selectedMemoryCategory") }
                             DropdownMenu(expanded = expandedMemoryCategory, onDismissRequest = { expandedMemoryCategory = false }) {
@@ -557,7 +584,7 @@ fun Jarvis() {
                             }
                         )
                         Spacer(Modifier.height(10.dp))
-                        val visibleMemories = memories.withIndex().filter { it.value.category == selectedMemoryCategory }
+                        val visibleMemories = memories.withIndex().filter { it.value.category == selectedMemoryCategory && it.value.text.contains(memorySearch.trim(), ignoreCase = true) }
                         Text("$selectedMemoryCategory · ${visibleMemories.size} recuerdos", color = cyan, fontSize = 12.sp)
                         if (visibleMemories.isEmpty()) Text("Todavía no hay recuerdos en esta sección.", color = Color.LightGray, fontSize = 12.sp)
                         visibleMemories.forEach { indexed ->
@@ -606,6 +633,8 @@ fun Jarvis() {
                 }
             )
         }
+
+        if (pendingMemorySuggestion.isNotBlank()) { AlertDialog(onDismissRequest = { pendingMemorySuggestion = "" }, title = { Text("¿Guardar este recuerdo?") }, text = { Text("Se guardará en Personal, solo en este dispositivo:\n\n$pendingMemorySuggestion") }, confirmButton = { TextButton(onClick = { memories = memories + MemoryItem("Personal", pendingMemorySuggestion); saveMemories(memories); pendingMemorySuggestion = "" }) { Text("Sí, guardar") } }, dismissButton = { TextButton(onClick = { pendingMemorySuggestion = "" }) { Text("Ahora no") } }) }
 
         if (pendingDeleteMemoryIndex != null) {
             AlertDialog(
