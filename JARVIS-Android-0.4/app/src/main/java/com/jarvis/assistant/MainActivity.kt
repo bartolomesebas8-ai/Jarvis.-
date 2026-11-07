@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
 
 private const val PREFS = "jarvis_local_memory"
 private const val HISTORY = "chat_history"
+private const val MEMORIES = "saved_memories"
 
 private fun loadHistory(context: android.content.Context): List<Line> {
     val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -69,6 +70,17 @@ private fun saveHistory(context: android.content.Context, lines: List<Line>) {
         .edit().putString(HISTORY, array.toString()).commit()
 }
 
+private fun loadMemories(context: android.content.Context): List<String> {
+    val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+        .getString(MEMORIES, null) ?: return emptyList()
+    return try {
+        val array = JSONArray(raw)
+        (0 until array.length()).map { array.getString(it) }
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
+
 @Composable
 fun Jarvis() {
     var showSplash by remember { mutableStateOf(true) }
@@ -83,6 +95,14 @@ fun Jarvis() {
     var input by remember { mutableStateOf("") }
     var lines by remember { mutableStateOf(loadHistory(context)) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showMemoryDialog by remember { mutableStateOf(false) }
+    var memoryInput by remember { mutableStateOf("") }
+    var memories by remember { mutableStateOf(loadMemories(context)) }
+
+    fun saveMemories(items: List<String>) {
+        context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+            .edit().putString(MEMORIES, JSONArray(items).toString()).commit()
+    }
 
     fun sendMessage() {
         val msg = input.trim()
@@ -146,6 +166,7 @@ fun Jarvis() {
                                 Text("Memoria local activa", color = Color(0xFF9CB4C7), fontSize = 10.sp)
                             }
                         }
+                        TextButton(onClick = { showMemoryDialog = true }) { Text("Memoria", color = cyan, fontSize = 12.sp) }
                         TextButton(onClick = { showClearDialog = true }) { Text("Borrar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
                     }
                 }
@@ -223,6 +244,53 @@ fun Jarvis() {
                 Spacer(Modifier.height(8.dp))
                 Text("JARVIS 0.5 · Modo local", color = Color.Gray, fontSize = 11.sp)
             }
+        }
+
+        if (showMemoryDialog) {
+            AlertDialog(
+                onDismissRequest = { showMemoryDialog = false },
+                title = { Text("Memoria de JARVIS") },
+                text = {
+                    Column {
+                        Text("Estos recuerdos se guardan solo en este teléfono. Añade únicamente información que quieras conservar.", fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        BasicTextField(
+                            value = memoryInput,
+                            onValueChange = { memoryInput = it },
+                            modifier = Modifier.fillMaxWidth().background(Color(0xFF20364A), RoundedCornerShape(10.dp)).padding(12.dp),
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+                            decorationBox = { inner ->
+                                if (memoryInput.isEmpty()) Text("Escribe un recuerdo…", color = Color.LightGray)
+                                inner()
+                            }
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text("Recuerdos guardados: ${memories.size}", color = cyan, fontSize = 12.sp)
+                        memories.forEachIndexed { index, item ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("• $item", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                TextButton(onClick = {
+                                    memories = memories.toMutableList().also { it.removeAt(index) }
+                                    saveMemories(memories)
+                                }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val value = memoryInput.trim()
+                        if (value.isNotEmpty()) {
+                            memories = memories + value
+                            saveMemories(memories)
+                            memoryInput = ""
+                        }
+                    }) { Text("Guardar recuerdo") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showMemoryDialog = false }) { Text("Cerrar") }
+                }
+            )
         }
 
         if (showClearDialog) {
