@@ -1,4 +1,7 @@
 .inspection/JARVIS-0.3/AndroidManifest.xml
+.inspection/JARVIS-0.3/app-build.gradle.kts
 .inspection/JARVIS-0.3/archivos.txt
+.inspection/JARVIS-0.3/contenido-completo-del-zip.txt
 .inspection/JARVIS-0.3/java/com/jarvis/assistant/AiEngine.kt
 .inspection/JARVIS-0.3/java/com/jarvis/assistant/MainActivity.kt
+.inspection/JARVIS-0.3/settings.gradle.kts
