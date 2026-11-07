@@ -70,9 +70,9 @@ object JavaScriptRunner {
                 </script></body></html>
             """.trimIndent().replace("__SOURCE__", safeSource)
             web.loadDataWithBaseURL("https://jarvis.invalid/", html, "text/html", "UTF-8", null)
-            Handler(Looper.getMainLooper()).postDelayed {
+            Handler(Looper.getMainLooper()).postDelayed({
                 finish(CodeRunResult(false, "NO FUNCIONA", "La ejecución superó el límite de 5 segundos y fue detenida."))
-            }, 5000)
+            }, 5000L)
         }
     }
 }
