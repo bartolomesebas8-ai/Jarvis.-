@@ -246,6 +246,14 @@ fun Jarvis() {
     var knowledgeQuery by remember { mutableStateOf("") }
     var knowledgeStatus by remember { mutableStateOf("") }
     var knowledgeResults by remember { mutableStateOf(emptyList<KnowledgeMatch>()) }
+    var knowledgeManualText by remember { mutableStateOf("") }
+    var codeWorkspaces by remember { mutableStateOf(CodeWorkspaces.list(context)) }
+    var codeWorkspaceName by remember { mutableStateOf("") }
+    var codeWorkspaceSource by remember { mutableStateOf("") }
+    var selectedCodeA by remember { mutableStateOf("") }
+    var selectedCodeB by remember { mutableStateOf("") }
+    var codeComparison by remember { mutableStateOf(emptyList<String>()) }
+    var codeWorkspaceReports by remember { mutableStateOf(emptyMap<String, CodeGuardReport>()) }
     var codeGuardReport by remember { mutableStateOf<CodeGuardReport?>(null) }
     var codeGuardStatus by remember { mutableStateOf("") }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
@@ -321,7 +329,12 @@ fun Jarvis() {
                 val source = bytes.toString(Charsets.UTF_8)
                 val name = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "codigo.txt"
                 codeGuardReport = CodeGuardAnalyzer.analyze(name, source)
-                codeGuardStatus = "Análisis estático terminado. El archivo no se ejecutó."
+                if (codeWorkspaces.size < 20) {
+                    val item = CodeWorkspace(java.util.UUID.randomUUID().toString(), name.take(60), source)
+                    codeWorkspaces = codeWorkspaces + item
+                    CodeWorkspaces.save(context, codeWorkspaces)
+                    codeGuardStatus = "Archivo analizado y guardado en un espacio separado. No se ejecutó."
+                } else codeGuardStatus = "Analizado, pero hay 20 espacios; elimina uno para guardar otro."
             } catch (error: Exception) {
                 codeGuardReport = null
                 codeGuardStatus = error.message ?: "No se pudo analizar el archivo."
