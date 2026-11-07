@@ -3,6 +3,8 @@ package com.jarvis.assistant
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -125,6 +127,8 @@ fun Jarvis() {
     var showClearDialog by remember { mutableStateOf(false) }
     var showMemoryDialog by remember { mutableStateOf(false) }
     var showExtensionHelp by remember { mutableStateOf(false) }
+    var extensionStatus by remember { mutableStateOf("") }
+    var extensions by remember { mutableStateOf(ExtensionManager.list(context)) }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -138,6 +142,20 @@ fun Jarvis() {
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
+
+    val extensionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                val stream = context.contentResolver.openInputStream(uri)
+                    ?: throw IllegalArgumentException("No se pudo abrir el archivo.")
+                val added = ExtensionManager.import(context, stream)
+                extensions = ExtensionManager.list(context)
+                extensionStatus = "Extensión importada y desactivada: " + added.name
+            } catch (error: Exception) {
+                extensionStatus = error.message ?: "No se pudo importar la extensión."
+            }
+        }
+    }
 
     fun saveMemories(items: List<MemoryItem>) {
         val array = JSONArray()
@@ -248,9 +266,45 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("EXTENSIONES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Una extensión es un archivo .json que describe una función adicional. No es un recuerdo y no se escribe en Memoria. Esta guía explica cómo preparar el paquete; la importación dentro de la app aún está pendiente.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Text("Importa paquetes JSON declarativos. JARVIS valida su formato y permisos; no ejecuta código externo. Toda extensión nueva queda desactivada hasta que tú la actives.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
-                            Button(onClick = { showExtensionHelp = true }, modifier = Modifier.fillMaxWidth()) { Text("Cómo preparar una extensión") }
+                            Button(onClick = { extensionPicker.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo .json") }
+                            OutlinedButton(onClick = { showExtensionHelp = true }, modifier = Modifier.fillMaxWidth()) { Text("Cómo preparar una extensión") }
+                            if (extensionStatus.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(extensionStatus, color = Color(0xFFFFD28A), fontSize = 11.sp)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text("Extensiones instaladas: ${extensions.size}", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            if (extensions.isEmpty()) Text("Aún no has importado extensiones.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            extensions.forEach { extension ->
+                                Spacer(Modifier.height(8.dp))
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Text(extension.name + " · " + extension.version, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text(extension.description, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                        Text("Permisos: " + if (extension.capabilities.isEmpty()) "ninguno" else extension.capabilities.joinToString(), color = Color(0xFF8FAABD), fontSize = 10.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(if (extension.enabled) "Activa" else "Desactivada", color = cyan, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                                            Switch(checked = extension.enabled, onCheckedChange = { enabled ->
+                                                try {
+                                                    ExtensionManager.setEnabled(context, extension, enabled)
+                                                    extensions = ExtensionManager.list(context)
+                                                    extensionStatus = if (enabled) "Extensión activada." else "Extensión desactivada."
+                                                } catch (error: Exception) {
+                                                    extensionStatus = error.message ?: "No se pudo cambiar el estado."
+                                                }
+                                            })
+                                            TextButton(onClick = {
+                                                if (ExtensionManager.remove(context, extension)) {
+                                                    extensions = ExtensionManager.list(context)
+                                                    extensionStatus = "Extensión eliminada."
+                                                }
+                                            }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     Spacer(Modifier.height(12.dp))
