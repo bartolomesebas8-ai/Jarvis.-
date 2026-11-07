@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -225,11 +226,11 @@ private fun loadMemories(context: android.content.Context): List<MemoryItem> {
 }
 
 @Composable
-private fun SettingsGroupHeader(icon: String, title: String, subtitle: String) {
+private fun SettingsGroupHeader(icon: String, title: String, subtitle: String, expanded: Boolean, onClick: () -> Unit) {
     Surface(
         color = Color(0xFF102B43),
         shape = RoundedCornerShape(15.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
@@ -246,7 +247,7 @@ private fun SettingsGroupHeader(icon: String, title: String, subtitle: String) {
                 Spacer(Modifier.height(3.dp))
                 Text(subtitle, color = Color(0xFF9CB4C7), fontSize = 11.sp)
             }
-            Text("›", color = Color(0xFF54D6E8), fontSize = 23.sp, fontWeight = FontWeight.Light)
+            Text(if (expanded) "⌄" else "›", color = Color(0xFF54D6E8), fontSize = 23.sp, fontWeight = FontWeight.Light)
         }
     }
 }
@@ -299,6 +300,7 @@ fun Jarvis() {
     }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var expandedSettingsFolder by remember { mutableStateOf("") }
     var showPinSetup by remember { mutableStateOf(false) }
     var pinCurrent by remember { mutableStateOf("") }
     var pinFirst by remember { mutableStateOf("") }
@@ -536,6 +538,7 @@ fun Jarvis() {
             }
         } else {
             Column(Modifier.fillMaxSize().background(bg).padding(16.dp)) {
+                if (!showSettings) {
                 Surface(color = panel, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
                     Box(Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF173B55), Color(0xFF142238), Color(0xFF102033))))) {
                         Row(
@@ -583,10 +586,17 @@ fun Jarvis() {
                         }
                     }
                 }
+                }
                 Spacer(Modifier.height(12.dp))
                 if (showSettings) {
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
-                    Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("Abre una carpeta para ver sus herramientas.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                        }
+                        TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan) }
+                    }
                     Text("Todo en su lugar: herramientas, memoria, productividad y protección.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -596,8 +606,9 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(14.dp))
-                    SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo")
+                    SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
                     Spacer(Modifier.height(9.dp))
+                    if (expandedSettingsFolder == "lab") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -687,9 +698,11 @@ fun Jarvis() {
                             Text("El comparador usa patrones de texto: puede omitir conflictos o señalar coincidencias que no son errores. No compila, ejecuta ni fusiona código.", color = Color(0xFFFFD28A), fontSize = 10.sp)
                         }
                     }
+                    }
                     Spacer(Modifier.height(18.dp))
-                    SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local")
+                    SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local", expandedSettingsFolder == "memory", { expandedSettingsFolder = if (expandedSettingsFolder == "memory") "" else "memory" })
                     Spacer(Modifier.height(9.dp))
+                    if (expandedSettingsFolder == "memory") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("MEMORIA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -769,9 +782,11 @@ fun Jarvis() {
                             }
                         }
                     }
+                    }
                     Spacer(Modifier.height(18.dp))
-                    SettingsGroupHeader("✧", "PERSONALIZACIÓN Y HERRAMIENTAS", "Extensiones y funciones complementarias")
+                    SettingsGroupHeader("✧", "PERSONALIZACIÓN Y HERRAMIENTAS", "Extensiones y funciones complementarias", expandedSettingsFolder == "tools", { expandedSettingsFolder = if (expandedSettingsFolder == "tools") "" else "tools" })
                     Spacer(Modifier.height(9.dp))
+                    if (expandedSettingsFolder == "tools") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("EXTENSIONES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -817,11 +832,12 @@ fun Jarvis() {
                             }
                         }
                     }
+                    }
                     Spacer(Modifier.height(12.dp))
+                    SettingsGroupHeader("◷", "PRODUCTIVIDAD Y PLANIFICACIÓN", "Tareas, agenda, rutinas y objetivos", expandedSettingsFolder == "productivity", { expandedSettingsFolder = if (expandedSettingsFolder == "productivity") "" else "productivity" })
+                    if (expandedSettingsFolder == "productivity") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            SettingsGroupHeader("◷", "PRODUCTIVIDAD Y PLANIFICACIÓN", "Tareas, agenda, rutinas y objetivos")
-                            Spacer(Modifier.height(9.dp))
                             Text("GESTOR DE TAREAS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Organiza pendientes, prioridades y fechas. Los avisos se programan en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
@@ -925,8 +941,10 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             }
                         }
                     }
-                    SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA")
-                            Spacer(Modifier.height(9.dp))
+                    }
+                    SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
+                    if (expandedSettingsFolder == "security") {
+                    Spacer(Modifier.height(9.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
                             Button(onClick = { pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
@@ -938,6 +956,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             Spacer(Modifier.height(6.dp))
                             Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                         }
+                    }
                     }
                     }
                 } else {
