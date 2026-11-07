@@ -117,6 +117,16 @@ private fun scheduleJarvisReminder(context: android.content.Context, task: Jarvi
 private fun cancelJarvisReminder(context: android.content.Context, taskId: String) {
     androidx.work.WorkManager.getInstance(context).cancelUniqueWork("jarvis_reminder_" + taskId)
 }
+private fun taskLocalDate(value: String): java.time.LocalDate? {
+    val text = value.trim()
+    val formats = listOf("yyyy-MM-dd HH:mm", "dd/MM/yyyy HH:mm", "yyyy-MM-dd", "dd/MM/yyyy")
+    return formats.firstNotNullOfOrNull { pattern ->
+        runCatching { java.time.LocalDateTime.parse(text, java.time.format.DateTimeFormatter.ofPattern(pattern)).toLocalDate() }.getOrElse {
+            runCatching { java.time.LocalDate.parse(text, java.time.format.DateTimeFormatter.ofPattern(pattern)) }.getOrNull()
+        }
+    }
+}
+
 private fun saveTasks(context: android.content.Context, tasks: List<JarvisTask>) {
     val a = JSONArray()
     tasks.forEach { a.put(JSONObject().put("id",it.id).put("title",it.title).put("dueDate",it.dueDate).put("priority",it.priority).put("completed",it.completed)) }
@@ -208,6 +218,9 @@ fun Jarvis() {
     var taskPriority by remember { mutableStateOf("Media") }
     var showTaskDialog by remember { mutableStateOf(false) }
     var showCompletedTasks by remember { mutableStateOf(false) }
+    var plannerMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
+    var plannerDate by remember { mutableStateOf(java.time.LocalDate.now()) }
+    var plannerFilter by remember { mutableStateOf("Hoy") }
     var reminderPermissionGranted by remember { mutableStateOf(android.os.Build.VERSION.SDK_INT < 33 || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
     val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> reminderPermissionGranted = granted }
 
@@ -521,6 +534,28 @@ fun Jarvis() {
                             Text("Organiza pendientes, prioridades y fechas. Los avisos se programan en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("${tasks.count { !it.completed }} pendiente(s) · ${tasks.count { it.completed }} completada(s)", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+Spacer(Modifier.height(12.dp))
+Text("AGENDA Y PLANIFICACIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+Row(verticalAlignment = Alignment.CenterVertically) {
+    TextButton(onClick = { plannerMonth = plannerMonth.minusMonths(1) }) { Text("‹", color = cyan) }
+    Text(plannerMonth.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale("es", "PE")).replaceFirstChar { it.uppercase() } + " " + plannerMonth.year, color = Color.White, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    TextButton(onClick = { plannerMonth = plannerMonth.plusMonths(1) }) { Text("›", color = cyan) }
+}
+Row(Modifier.fillMaxWidth()) { listOf("L","M","X","J","V","S","D").forEach { day -> Text(day, color = cyan, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 11.sp) } }
+val offset = plannerMonth.atDay(1).dayOfWeek.value - 1
+val dayCells = (0 until offset).map { null } + (1..plannerMonth.lengthOfMonth()).map { it }
+dayCells.chunked(7).forEach { week -> Row(Modifier.fillMaxWidth()) { week.forEach { day ->
+    Box(Modifier.weight(1f).padding(2.dp).height(34.dp).background(if (day != null && plannerDate == plannerMonth.atDay(day)) Color(0xFF24516A) else Color.Transparent, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+        if (day != null) { val date = plannerMonth.atDay(day); val marked = tasks.any { !it.completed && taskLocalDate(it.dueDate) == date }; TextButton(onClick = { plannerDate = date; plannerFilter = "Fecha" }, contentPadding = PaddingValues(0.dp)) { Text(day.toString() + if (marked) " •" else "", color = if (date == java.time.LocalDate.now()) cyan else Color.White, fontSize = 12.sp) } }
+    }
+} } }
+Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { listOf("Hoy","Mañana","Próximos","Vencidas").forEach { filter -> TextButton(onClick = { plannerFilter = filter; if (filter == "Hoy") plannerDate = java.time.LocalDate.now(); if (filter == "Mañana") plannerDate = java.time.LocalDate.now().plusDays(1) }) { Text(filter, color = if (plannerFilter == filter) cyan else Color(0xFFB8C9D8), fontSize = 10.sp) } } }
+val today = java.time.LocalDate.now()
+val plannedTasks = tasks.filter { !it.completed }.filter { task -> val date = taskLocalDate(task.dueDate); when (plannerFilter) { "Hoy" -> date == today; "Mañana" -> date == today.plusDays(1); "Próximos" -> date != null && date > today.plusDays(1); "Vencidas" -> date != null && date < today; else -> date == plannerDate } }.sortedBy { taskLocalDate(it.dueDate) ?: java.time.LocalDate.MAX }
+Text(if (plannerFilter == "Fecha") "Tareas del " + plannerDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) else "Tareas: " + plannerFilter.lowercase(), color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+if (plannedTasks.isEmpty()) Text("No hay tareas para este periodo. Las tareas sin fecha no aparecen en la agenda.", color = Color(0xFF9CB4C7), fontSize = 11.sp) else plannedTasks.forEach { task -> Text("• " + task.title + " · " + task.dueDate, color = Color.White, fontSize = 11.sp) }
+Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+
                             Text(if (reminderPermissionGranted) "Notificaciones activadas" else "Activa las notificaciones para recibir recordatorios.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                             if (!reminderPermissionGranted && android.os.Build.VERSION.SDK_INT >= 33) { TextButton(onClick = { reminderPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }) { Text("Permitir notificaciones") } }
                             Button(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva tarea") }
@@ -635,7 +670,7 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 1.1 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.2 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
