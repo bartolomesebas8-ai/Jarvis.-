@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
 private const val PREFS = "jarvis_local_memory"
 private const val HISTORY = "chat_history"
 private const val MEMORIES = "saved_memories"
+private const val TASKS = "jarvis_tasks"
 private const val SECURITY_SALT = "security_pin_salt"
 private const val SECURITY_HASH = "security_pin_hash"
 private fun hashPin(pin: String, salt: ByteArray): ByteArray { val spec = PBEKeySpec(pin.toCharArray(), salt, 120000, 256); return try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded } finally { spec.clearPassword() } }
@@ -70,6 +71,20 @@ private fun verifySecurityPin(context: android.content.Context, pin: String): Bo
 }
 private val MEMORY_CATEGORIES = listOf("Personal", "Proyectos", "Estudios", "Metas", "Temporal")
 data class MemoryItem(val category: String, val text: String)
+data class JarvisTask(val id: String, val title: String, val dueDate: String, val priority: String, val completed: Boolean = false)
+private fun loadTasks(context: android.content.Context): List<JarvisTask> {
+    val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(TASKS, null) ?: return emptyList()
+    return try { val a = JSONArray(raw); (0 until a.length()).mapNotNull { i ->
+        val o = a.optJSONObject(i) ?: return@mapNotNull null
+        val title = o.optString("title", "").trim()
+        if (title.isBlank()) null else JarvisTask(o.optString("id", java.util.UUID.randomUUID().toString()), title.take(160), o.optString("dueDate", "").take(40), o.optString("priority", "Media").let { if (it in listOf("Alta", "Media", "Baja")) it else "Media" }, o.optBoolean("completed", false))
+    } } catch (_: Exception) { emptyList() }
+}
+private fun saveTasks(context: android.content.Context, tasks: List<JarvisTask>) {
+    val a = JSONArray()
+    tasks.forEach { a.put(JSONObject().put("id",it.id).put("title",it.title).put("dueDate",it.dueDate).put("priority",it.priority).put("completed",it.completed)) }
+    context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(TASKS,a.toString()).commit()
+}
 
 private fun loadHistory(context: android.content.Context): List<Line> {
     val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -150,6 +165,12 @@ fun Jarvis() {
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
+    var tasks by remember { mutableStateOf(loadTasks(context)) }
+    var taskTitle by remember { mutableStateOf("") }
+    var taskDueDate by remember { mutableStateOf("") }
+    var taskPriority by remember { mutableStateOf("Media") }
+    var showTaskDialog by remember { mutableStateOf(false) }
+    var showCompletedTasks by remember { mutableStateOf(false) }
 
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -263,7 +284,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  0.8", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  0.9", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -423,6 +444,35 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
+                            Text("GESTOR DE TAREAS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Text("Organiza pendientes, prioridades y fechas. Todo se guarda localmente.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("${tasks.count { !it.completed }} pendiente(s) · ${tasks.count { it.completed }} completada(s)", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Button(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva tarea") }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Mostrar completadas", color = Color(0xFFB8C9D8), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                Switch(checked = showCompletedTasks, onCheckedChange = { showCompletedTasks = it })
+                            }
+                            val visibleTasks = tasks.filter { it.completed == showCompletedTasks }.sortedBy { when(it.priority) { "Alta" -> 0; "Media" -> 1; else -> 2 } }
+                            if (visibleTasks.isEmpty()) Text(if (showCompletedTasks) "Aún no hay tareas completadas." else "No tienes tareas pendientes.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            visibleTasks.forEach { task ->
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(checked = task.completed, onCheckedChange = { checked -> tasks = tasks.map { if (it.id == task.id) it.copy(completed = checked) else it }; saveTasks(context,tasks) })
+                                        Column(Modifier.weight(1f)) {
+                                            Text(task.title, color = Color.White, fontSize = 13.sp, textDecoration = if(task.completed) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
+                                            Text("Prioridad: ${task.priority}" + if(task.dueDate.isNotBlank()) " · Fecha: ${task.dueDate}" else " · Sin fecha", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                                        }
+                                        TextButton(onClick = { tasks = tasks.filterNot { it.id == task.id }; saveTasks(context,tasks) }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 10.sp) }
+                                    }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
                             Text("SEGURIDAD", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Spacer(Modifier.height(6.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
@@ -510,11 +560,24 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 0.8 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 0.9 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
 
+
+        if (showTaskDialog) {
+            AlertDialog(onDismissRequest = { showTaskDialog = false }, title = { Text("Nueva tarea") }, text = {
+                Column {
+                    OutlinedTextField(value = taskTitle, onValueChange = { taskTitle = it.take(160) }, label = { Text("¿Qué necesitas hacer?") })
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = taskDueDate, onValueChange = { taskDueDate = it.take(40) }, label = { Text("Fecha límite (opcional)") }, placeholder = { Text("Ej. 15/11/2026") }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Prioridad", color = cyan, fontSize = 12.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) { listOf("Alta","Media","Baja").forEach { option -> Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = taskPriority == option, onClick = { taskPriority = option }); Text(option, color = Color.White, fontSize = 10.sp) } } }
+                }
+            }, confirmButton = { TextButton(onClick = { val title = taskTitle.trim(); if(title.isNotBlank()) { tasks = tasks + JarvisTask(java.util.UUID.randomUUID().toString(),title,taskDueDate.trim(),taskPriority); saveTasks(context,tasks); showTaskDialog = false } }, enabled = taskTitle.isNotBlank()) { Text("Guardar tarea") } }, dismissButton = { TextButton(onClick = { showTaskDialog = false }) { Text("Cancelar") } })
+        }
 
         if (showExtensionHelp) {
             AlertDialog(
