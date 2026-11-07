@@ -291,6 +291,20 @@ fun Jarvis() {
     var plannerMonth by remember { mutableStateOf(java.time.YearMonth.now()) }
     var plannerDate by remember { mutableStateOf(java.time.LocalDate.now()) }
     var plannerFilter by remember { mutableStateOf("Hoy") }
+    var focusRunning by remember { mutableStateOf(false) }
+    var focusSeconds by remember { mutableIntStateOf(25 * 60) }
+    var focusSessions by remember { mutableIntStateOf(context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getInt("focus_sessions", 0)) }
+    LaunchedEffect(focusRunning) {
+        while (focusRunning && focusSeconds > 0) {
+            delay(1000)
+            focusSeconds = (focusSeconds - 1).coerceAtLeast(0)
+            if (focusSeconds == 0) {
+                focusRunning = false
+                focusSessions += 1
+                context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putInt("focus_sessions", focusSessions).apply()
+            }
+        }
+    }
     var reminderPermissionGranted by remember { mutableStateOf(android.os.Build.VERSION.SDK_INT < 33 || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
     val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> reminderPermissionGranted = granted }
 
