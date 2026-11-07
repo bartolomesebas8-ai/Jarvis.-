@@ -1,4 +1,5 @@
-name: Construir APK de JARVIS 0.2
+
+name: Construir APK de JARVIS 0.3
 
 on:
   workflow_dispatch:
@@ -27,15 +28,15 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extraer y verificar JARVIS 0.2
+      - name: Extraer y verificar JARVIS 0.3
         shell: bash
         run: |
           set -euo pipefail
 
-          ZIP="JARVIS-fuente-0.2.zip"
+          ZIP="JARVIS-0.3-motores.zip"
 
           if [ ! -f "$ZIP" ]; then
-            echo "No se encontró el proyecto nuevo"
+            echo "No se encontró el ZIP JARVIS 0.3"
             exit 1
           fi
 
@@ -43,19 +44,17 @@ jobs:
           unzip -q "$ZIP" -d extracted
 
           PROJECT_DIR="extracted/JARVIS-Android"
+          SOURCE="$PROJECT_DIR/app/src/main/java/com/jarvis/assistant/AiEngine.kt"
 
           test -f "$PROJECT_DIR/settings.gradle.kts"
-
-          SOURCE="$PROJECT_DIR/app/src/main/java/com/jarvis/assistant/MainActivity.kt"
-
-          grep -q 'Memoria local activada' "$SOURCE"
-          grep -q 'Versión 0.2 · Memoria local' "$SOURCE"
-          grep -q 'versionName="0.2"' "$PROJECT_DIR/app/build.gradle.kts"
+          test -f "$SOURCE"
+          grep -q 'class GroqEngine' "$SOURCE"
+          grep -q 'class QwenEngine' "$SOURCE"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "JARVIS 0.2 verificado"
+          echo "Proyecto JARVIS 0.3 verificado"
 
-      - name: Configurar Java y Kotlin
+      - name: Configurar Java, Kotlin y versión
         shell: bash
         run: |
           python3 - "$PROJECT_DIR/app/build.gradle.kts" <<'PY'
@@ -68,16 +67,18 @@ jobs:
           s = s.replace(
               'android {',
               '''android {
-                  compileOptions {
-                      sourceCompatibility = JavaVersion.VERSION_17
-                      targetCompatibility = JavaVersion.VERSION_17
-                  }
-                  kotlinOptions {
-                      jvmTarget = "17"
-                  }''',
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }''',
               1
           )
 
+          s = s.replace('versionCode=2', 'versionCode=3')
+          s = s.replace('versionName="0.2"', 'versionName="0.3"')
           p.write_text(s)
           PY
 
@@ -87,7 +88,7 @@ jobs:
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-0.2-debug
+          name: JARVIS-0.3-debug
           path: extracted/JARVIS-Android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           
