@@ -8,8 +8,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -64,11 +69,33 @@ fun Jarvis() {
     LaunchedEffect(Unit) { delay(1600); showSplash = false }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
     val panel = Color(0xFF142238)
     val cyan = Color(0xFF54D6E8)
     var input by remember { mutableStateOf("") }
     var lines by remember { mutableStateOf(loadHistory(context)) }
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    fun sendMessage() {
+        val msg = input.trim()
+        if (msg.isNotEmpty()) {
+            val updated = lines + Line("TÚ", msg) + Line(
+                "JARVIS",
+                "Recibí tu mensaje y lo guardé en este dispositivo. La conexión con Groq y el motor Qwen todavía está pendiente."
+            )
+            lines = updated
+            saveHistory(context, updated)
+            input = ""
+            keyboard?.hide()
+        }
+    }
+
+    LaunchedEffect(lines.size) {
+        if (lines.isNotEmpty()) listState.animateScrollToItem(lines.lastIndex)
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = cyan, background = bg, surface = panel, onSurface = Color.White)) {
         if (showSplash) {
@@ -91,19 +118,29 @@ fun Jarvis() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(painterResource(R.drawable.jarvis_logo), contentDescription = null, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.width(10.dp))
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text("JARVIS", color = cyan, fontSize = 27.sp, fontWeight = FontWeight.Bold)
                         Text("ASISTENTE PERSONAL · 0.4", color = Color.LightGray, fontSize = 10.sp)
                     }
+                    TextButton(onClick = { showClearDialog = true }) {
+                        Text("Borrar chat", color = Color(0xFFFF9B9B), fontSize = 12.sp)
+                    }
                 }
-                Text("Memoria local activada", color = Color(0xFF8ED9A8), fontSize = 11.sp)
+                Text("Memoria local activada · historial guardado en este dispositivo", color = Color(0xFF8ED9A8), fontSize = 11.sp)
                 Spacer(Modifier.height(14.dp))
                 Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         items(lines) { line ->
                             Column(Modifier.fillMaxWidth(), horizontalAlignment = if (line.who == "TÚ") Alignment.End else Alignment.Start) {
                                 Text(line.who, color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Surface(color = if (line.who == "TÚ") Color(0xFF21465A) else Color(0xFF203047), shape = RoundedCornerShape(14.dp)) {
+                                Surface(
+                                    color = if (line.who == "TÚ") Color(0xFF21465A) else Color(0xFF203047),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
                                     Text(line.text, Modifier.padding(12.dp), color = Color.White)
                                 }
                             }
@@ -118,6 +155,8 @@ fun Jarvis() {
                             onValueChange = { input = it },
                             modifier = Modifier.fillMaxWidth().padding(15.dp),
                             textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { sendMessage() }),
                             decorationBox = { inner ->
                                 if (input.isEmpty()) Text("Escribe a JARVIS…", color = Color.Gray)
                                 inner()
@@ -125,19 +164,30 @@ fun Jarvis() {
                         )
                     }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = {
-                        val msg = input.trim()
-                        if (msg.isNotEmpty()) {
-                            val updated = lines + Line("TÚ", msg) + Line("JARVIS", "Tu mensaje quedó guardado en este dispositivo. Groq y Qwen todavía no están conectados.")
-                            lines = updated
-                            saveHistory(context, updated)
-                            input = ""
-                        }
-                    }) { Text("Enviar") }
+                    Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("Versión 0.4 · Memoria local en este dispositivo", color = Color.Gray, fontSize = 11.sp)
             }
+        }
+
+        if (showClearDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearDialog = false },
+                title = { Text("¿Borrar el historial?") },
+                text = { Text("Se eliminarán los mensajes guardados en este dispositivo. Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val fresh = listOf(Line("JARVIS", "Historial borrado. Empezamos de nuevo."))
+                        lines = fresh
+                        saveHistory(context, fresh)
+                        showClearDialog = false
+                    }) { Text("Borrar historial", color = Color(0xFFFF7777)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearDialog = false }) { Text("Cancelar") }
+                }
+            )
         }
     }
 }
