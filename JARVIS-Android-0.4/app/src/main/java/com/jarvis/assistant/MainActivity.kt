@@ -198,6 +198,15 @@ fun Jarvis() {
                             Spacer(Modifier.height(6.dp))
                             Text("Administra recuerdos por categorías: Personal, Proyectos, Estudios, Metas y Temporal.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
+                            MEMORY_CATEGORIES.forEach { category ->
+                                val count = memories.count { it.category == category }
+                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(category, color = Color(0xFFB8C9D8), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                    Text("$count", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
                             Button(onClick = { showMemoryDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Abrir memoria") }
                         }
                     }
@@ -325,10 +334,18 @@ fun Jarvis() {
                                 Text("• ${indexed.value.text}", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
                                 TextButton(onClick = {
                                     memoryInput = indexed.value.text
+                                    selectedMemoryCategory = indexed.value.category
                                     editingMemoryIndex = indexed.index
                                 }) { Text("Editar", color = cyan, fontSize = 11.sp) }
                                 TextButton(onClick = {
                                     memories = memories.toMutableList().also { it.removeAt(indexed.index) }
+                                    val editing = editingMemoryIndex
+                                    if (editing == indexed.index) {
+                                        editingMemoryIndex = null
+                                        memoryInput = ""
+                                    } else if (editing != null && editing > indexed.index) {
+                                        editingMemoryIndex = editing - 1
+                                    }
                                     saveMemories(memories)
                                 }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
                             }
@@ -350,7 +367,19 @@ fun Jarvis() {
                     }) { Text(if (editingMemoryIndex == null) "Guardar recuerdo" else "Guardar cambios") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showMemoryDialog = false }) { Text("Cerrar") }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (editingMemoryIndex != null) {
+                            TextButton(onClick = {
+                                editingMemoryIndex = null
+                                memoryInput = ""
+                            }) { Text("Cancelar edición") }
+                        }
+                        TextButton(onClick = {
+                            editingMemoryIndex = null
+                            memoryInput = ""
+                            showMemoryDialog = false
+                        }) { Text("Cerrar") }
+                    }
                 }
             )
         }
