@@ -246,6 +246,8 @@ fun Jarvis() {
     var knowledgeQuery by remember { mutableStateOf("") }
     var knowledgeStatus by remember { mutableStateOf("") }
     var knowledgeResults by remember { mutableStateOf(emptyList<KnowledgeMatch>()) }
+    var codeGuardReport by remember { mutableStateOf<CodeGuardReport?>(null) }
+    var codeGuardStatus by remember { mutableStateOf("") }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -296,6 +298,33 @@ fun Jarvis() {
                 knowledgeResults = emptyList()
             } catch (error: Exception) {
                 knowledgeStatus = error.message ?: "No se pudo importar el documento."
+            }
+        }
+    }
+
+    val codeGuardPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    var total = 0
+                    while (true) {
+                        val count = stream.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        require(total <= 200_000) { "El archivo supera el límite de 200 KB." }
+                        output.write(buffer, 0, count)
+                    }
+                    output.toByteArray()
+                } ?: throw IllegalArgumentException("No se pudo abrir el archivo.")
+                val source = bytes.toString(Charsets.UTF_8)
+                val name = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "codigo.txt"
+                codeGuardReport = CodeGuardAnalyzer.analyze(name, source)
+                codeGuardStatus = "Análisis estático terminado. El archivo no se ejecutó."
+            } catch (error: Exception) {
+                codeGuardReport = null
+                codeGuardStatus = error.message ?: "No se pudo analizar el archivo."
             }
         }
     }
@@ -463,6 +492,32 @@ fun Jarvis() {
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("Organiza las opciones de JARVIS sin llenar la pantalla principal.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                    Spacer(Modifier.height(14.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("CODE GUARD · ANÁLISIS DE CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Importa código para inspeccionarlo sin ejecutarlo. Esta primera etapa usa reglas estáticas heurísticas; no garantiza detectar todo el código malicioso. La ejecución permanece deshabilitada.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Analizar archivo de código") }
+                            if (codeGuardStatus.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
+                            }
+                            codeGuardReport?.let { report ->
+                                Spacer(Modifier.height(10.dp))
+                                Text("Lenguaje: " + report.language + " · Líneas: " + report.analyzedLines, color = Color.White, fontSize = 12.sp)
+                                Text(report.summary, color = if (report.findings.any { it.risk == CodeRisk.HIGH || it.risk == CodeRisk.CRITICAL }) Color(0xFFFF9B9B) else Color(0xFFFFD28A), fontSize = 12.sp)
+                                report.findings.take(30).forEach { finding ->
+                                    Spacer(Modifier.height(7.dp))
+                                    Text("Línea " + finding.line + " · " + finding.risk + " · " + finding.title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(finding.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                    if (finding.evidence.isNotBlank()) Text(finding.evidence, color = Color(0xFF8FAABD), fontSize = 10.sp)
+                                }
+                                if (report.findings.isEmpty()) Text("No hubo coincidencias en las reglas actuales. Esto no significa que el archivo sea seguro.", color = Color(0xFFFFD28A), fontSize = 11.sp)
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(18.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
