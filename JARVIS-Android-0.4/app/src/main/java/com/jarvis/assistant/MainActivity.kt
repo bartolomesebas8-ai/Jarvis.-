@@ -58,6 +58,14 @@ private const val SECURITY_HASH = "security_pin_hash"
 private fun hashPin(pin: String, salt: ByteArray): ByteArray { val spec = PBEKeySpec(pin.toCharArray(), salt, 120000, 256); return try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded } finally { spec.clearPassword() } }
 private fun saveSecurityPin(context: android.content.Context, pin: String) { val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }; context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(SECURITY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP)).putString(SECURITY_HASH, Base64.encodeToString(hashPin(pin, salt), Base64.NO_WRAP)).commit() }
 private fun hasSecurityPin(context: android.content.Context): Boolean = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).contains(SECURITY_HASH)
+private fun verifySecurityPin(context: android.content.Context, pin: String): Boolean {
+    return try {
+        val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+        val salt = Base64.decode(prefs.getString(SECURITY_SALT, null) ?: return false, Base64.NO_WRAP)
+        val expected = Base64.decode(prefs.getString(SECURITY_HASH, null) ?: return false, Base64.NO_WRAP)
+        java.security.MessageDigest.isEqual(expected, hashPin(pin, salt))
+    } catch (_: Exception) { false }
+}
 private val MEMORY_CATEGORIES = listOf("Personal", "Proyectos", "Estudios", "Metas", "Temporal")
 data class MemoryItem(val category: String, val text: String)
 
@@ -119,7 +127,7 @@ fun Jarvis() {
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
-    var pinFirst by remember { mutableStateOf("") }
+    var pinCurrent by remember { mutableStateOf("") }\n    var pinFirst by remember { mutableStateOf("") }
     var pinSecond by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
     var pinConfigured by remember { mutableStateOf(hasSecurityPin(context)) }
@@ -238,7 +246,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(6.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
-                            Button(onClick = { pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
+                            Button(onClick = { pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
                         }
                     }
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -327,16 +335,16 @@ fun Jarvis() {
 
 
         if (showPinSetup) {
-            AlertDialog(onDismissRequest = { showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" }, title = { Text(if (pinConfigured) "Cambiar código" else "Crear código de seguridad") }, text = {
+            AlertDialog(onDismissRequest = { showPinSetup = false; pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = "" }, title = { Text(if (pinConfigured) "Verificar y cambiar código" else "Crear código de seguridad") }, text = {
                 Column {
                     Text("Elige un código de 6 dígitos. No lo compartas ni lo escribas en el chat.", fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(value = pinFirst, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinFirst = it }, label = { Text("Nuevo código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+                    if (pinConfigured) { OutlinedTextField(value = pinCurrent, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinCurrent = it }, label = { Text("Código actual") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true); Spacer(Modifier.height(8.dp)) }\n                    OutlinedTextField(value = pinFirst, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinFirst = it }, label = { Text("Nuevo código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = pinSecond, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinSecond = it }, label = { Text("Confirmar código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
                     if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF9B9B), fontSize = 12.sp)
                 }
-            }, confirmButton = { TextButton(onClick = { when { pinFirst.length != 6 -> pinError = "El código debe tener exactamente 6 dígitos."; pinFirst != pinSecond -> pinError = "Los códigos no coinciden."; else -> { saveSecurityPin(context, pinFirst); pinConfigured = true; showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" } } }) { Text("Guardar código") } }, dismissButton = { TextButton(onClick = { showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" }) { Text("Cancelar") } })
+            }, confirmButton = { TextButton(onClick = { when { pinConfigured && (pinCurrent.length != 6 || !verifySecurityPin(context, pinCurrent)) -> pinError = "El código actual no es correcto."; pinFirst.length != 6 -> pinError = "El nuevo código debe tener exactamente 6 dígitos."; pinFirst != pinSecond -> pinError = "Los códigos nuevos no coinciden."; else -> { saveSecurityPin(context, pinFirst); pinConfigured = true; showPinSetup = false; pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = "" } } }) { Text("Guardar código") } }, dismissButton = { TextButton(onClick = { showPinSetup = false; pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = "" }) { Text("Cancelar") } })
         }
         if (showMemoryDialog) {
             AlertDialog(
