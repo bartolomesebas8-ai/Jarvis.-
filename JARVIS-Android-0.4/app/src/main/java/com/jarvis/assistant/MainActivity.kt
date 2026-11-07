@@ -518,8 +518,11 @@ fun Jarvis() {
                 if (showSettings) {
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("Organiza las opciones de JARVIS sin llenar la pantalla principal.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                    Text("Opciones agrupadas por tema para encontrarlas más fácilmente.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
                     Spacer(Modifier.height(14.dp))
+                    Text("LABORATORIO Y PROYECTOS", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("Código, proyectos y herramientas de desarrollo", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                    Spacer(Modifier.height(8.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -560,6 +563,9 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(18.dp))
+                    Text("MEMORIA Y CONOCIMIENTO", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("Recuerdos y documentos guardados en este dispositivo", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                    Spacer(Modifier.height(8.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("MEMORIA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -639,7 +645,10 @@ fun Jarvis() {
                             }
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(18.dp))
+                    Text("PERSONALIZACIÓN Y SEGURIDAD", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("Funciones adicionales y protección de JARVIS", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                    Spacer(Modifier.height(8.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("EXTENSIONES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
