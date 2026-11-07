@@ -124,6 +124,7 @@ fun Jarvis() {
     var lines by remember { mutableStateOf(loadHistory(context)) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showMemoryDialog by remember { mutableStateOf(false) }
+    var showExtensionHelp by remember { mutableStateOf(false) }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -224,7 +225,9 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("MEMORIA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Administra recuerdos por categorías: Personal, Proyectos, Estudios, Metas y Temporal.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Text("Guarda información escrita en lenguaje normal; no necesitas códigos. Elige una categoría y escribe una idea clara que quieras conservar.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Ejemplos: Personal: «Prefiero explicaciones paso a paso». Proyectos: «JARVIS tendrá memoria local y extensiones». Estudios: «Estoy aprendiendo álgebra». Metas: «Quiero terminar mi proyecto». Temporal: «Esta semana debo entregar una tarea».", color = Color(0xFF8FAABD), fontSize = 11.sp)
                             Spacer(Modifier.height(10.dp))
                             Spacer(Modifier.height(8.dp))
                             MEMORY_CATEGORIES.forEach { category ->
@@ -240,6 +243,16 @@ fun Jarvis() {
                     }
                     Spacer(Modifier.height(12.dp))
 
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("EXTENSIONES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Una extensión es un archivo .json que describe una función adicional. No es un recuerdo y no se escribe en Memoria. Esta guía explica cómo preparar el paquete; la importación dentro de la app aún está pendiente.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = { showExtensionHelp = true }, modifier = Modifier.fillMaxWidth()) { Text("Cómo preparar una extensión") }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
@@ -335,6 +348,26 @@ fun Jarvis() {
         }
 
 
+        if (showExtensionHelp) {
+            AlertDialog(
+                onDismissRequest = { showExtensionHelp = false },
+                title = { Text("Guía para preparar una extensión") },
+                text = {
+                    Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+                        Text("Una extensión se prepara como un archivo de texto JSON y se guarda con extensión .json. No pegues este contenido en Memoria.", fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("Qué significa cada campo:", color = cyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("• format: debe decir jarvis-extension.\n• formatVersion: versión del formato; usa 1.\n• id: identificador único, en minúsculas y sin espacios.\n• name: nombre visible.\n• version: versión, por ejemplo 1.0.0.\n• description: explica qué hace.\n• capabilities: permisos/acciones que solicita.\n• content.instructions: instrucciones de la extensión.\n• content.knowledge: lista de conocimientos; puede estar vacía.", fontSize = 12.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("Ejemplo completo:", color = cyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("{\n  \"format\": \"jarvis-extension\",\n  \"formatVersion\": 1,\n  \"id\": \"com.ejemplo.ayudante-estudio\",\n  \"name\": \"Ayudante de estudio\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Organiza temas de estudio\",\n  \"capabilities\": [\"knowledge.search\"],\n  \"content\": {\n    \"instructions\": \"Ayuda a ordenar temas y apuntes.\",\n    \"knowledge\": []\n  }\n}", color = Color(0xFFD5E7F2), fontSize = 10.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Este es un ejemplo de plantilla. La importación e instalación desde la app todavía debe implementarse. JARVIS no ejecutará scripts ni código externo.", color = Color(0xFFFFD28A), fontSize = 11.sp)
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showExtensionHelp = false }) { Text("Entendido") } }
+            )
+        }
         if (showPinSetup) {
             AlertDialog(onDismissRequest = { showPinSetup = false; pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = "" }, title = { Text(if (pinConfigured) "Verificar y cambiar código" else "Crear código de seguridad") }, text = {
                 Column {
@@ -354,7 +387,9 @@ fun Jarvis() {
                 title = { Text("Memoria de JARVIS") },
                 text = {
                     Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
-                        Text("Estos recuerdos se guardan solo en este teléfono. Añade únicamente información que quieras conservar.", fontSize = 13.sp)
+                        Text("Estos recuerdos se guardan solo en este teléfono. Escribe una frase normal, no código. Guarda solo información que quieras conservar.", fontSize = 13.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Personal: preferencias. Proyectos: ideas y avances. Estudios: temas que aprendes. Metas: objetivos. Temporal: información útil por poco tiempo.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
                         Spacer(Modifier.height(10.dp))
                         Box {
                             OutlinedButton(onClick = { expandedMemoryCategory = true }) { Text("Sección: $selectedMemoryCategory") }
@@ -374,7 +409,7 @@ fun Jarvis() {
                             modifier = Modifier.fillMaxWidth().background(Color(0xFF20364A), RoundedCornerShape(10.dp)).padding(12.dp),
                             textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
                             decorationBox = { inner ->
-                                if (memoryInput.isEmpty()) Text("Escribe un recuerdo…", color = Color.LightGray)
+                                if (memoryInput.isEmpty()) Text("Ejemplo: «En JARVIS quiero organizar mis proyectos por etapas»", color = Color.LightGray, fontSize = 12.sp)
                                 inner()
                             }
                         )
