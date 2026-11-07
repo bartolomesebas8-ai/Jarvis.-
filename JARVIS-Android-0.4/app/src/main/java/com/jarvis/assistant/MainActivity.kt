@@ -531,7 +531,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  1.0", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  2.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
