@@ -1,0 +1,39 @@
+name: Inspeccionar proyecto JARVIS 0.3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Extraer y preparar informe
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="JARVIS-0.3-motores.zip"
+          test -f "$ZIP"
+          mkdir -p extracted informe
+          unzip -q "$ZIP" -d extracted
+          PROJECT="extracted/JARVIS-Android"
+          test -d "$PROJECT/app/src/main"
+          cp -R "$PROJECT/app/src/main" informe/
+          cp "$PROJECT/app/build.gradle.kts" informe/ 2>/dev/null || true
+          cp "$PROJECT/settings.gradle.kts" informe/ 2>/dev/null || true
+          find informe -type f | sort > informe/archivos-incluidos.txt
+          echo "Inspección preparada. Archivos incluidos:"
+          cat informe/archivos-incluidos.txt
+
+      - name: Publicar archivos para revisión
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-0.3-inspeccion
+          path: informe/
+          if-no-files-found: error
+          retention-days: 7
