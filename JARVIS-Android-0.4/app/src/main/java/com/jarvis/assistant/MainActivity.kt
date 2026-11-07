@@ -225,6 +225,33 @@ private fun loadMemories(context: android.content.Context): List<MemoryItem> {
 }
 
 @Composable
+private fun SettingsGroupHeader(icon: String, title: String, subtitle: String) {
+    Surface(
+        color = Color(0xFF102B43),
+        shape = RoundedCornerShape(15.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(color = Color(0xFF1B4658), shape = RoundedCornerShape(11.dp), modifier = Modifier.size(38.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(icon, color = Color(0xFF8DEBFA), fontSize = 18.sp)
+                }
+            }
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(Modifier.height(3.dp))
+                Text(subtitle, color = Color(0xFF9CB4C7), fontSize = 11.sp)
+            }
+            Text("›", color = Color(0xFF54D6E8), fontSize = 23.sp, fontWeight = FontWeight.Light)
+        }
+    }
+}
+
+@Composable
 fun Jarvis() {
     var showSplash by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { delay(1900); showSplash = false }
@@ -509,26 +536,50 @@ fun Jarvis() {
             }
         } else {
             Column(Modifier.fillMaxSize().background(bg).padding(16.dp)) {
-                Surface(color = panel, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = CircleShape, color = Color(0xFF1B3B50), modifier = Modifier.size(54.dp)) {
-                            Image(painterResource(R.drawable.jarvis_logo), contentDescription = "Perfil de JARVIS", modifier = Modifier.padding(3.dp))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("J.A.R.V.I.S.", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                            Text(if (showSettings) "CONFIGURACIÓN" else "ASISTENTE PERSONAL", color = cyan, fontSize = 9.sp, letterSpacing = 1.6.sp)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(6.dp).background(Color(0xFF6EE7A8), CircleShape))
-                                Spacer(Modifier.width(5.dp))
-                                Text("Memoria local activa", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                Surface(color = panel, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+                    Box(Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF173B55), Color(0xFF142238), Color(0xFF102033))))) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.size(66.dp).background(
+                                    Brush.radialGradient(listOf(Color(0xFF34758A), Color(0xFF17364D))),
+                                    CircleShape
+                                ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painterResource(R.drawable.jarvis_logo),
+                                    contentDescription = "Logo de JARVIS",
+                                    modifier = Modifier.size(56.dp).clip(CircleShape)
+                                )
                             }
-                        }
-                        if (showSettings) {
-                            TextButton(onClick = { showSettings = false }) { Text("Volver al chat", color = cyan) }
-                        } else {
-                            TextButton(onClick = { showSettings = true }) { Text("⚙", color = cyan, fontSize = 24.sp) }
-                            TextButton(onClick = { showClearDialog = true }) { Text("Limpiar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
+                            Spacer(Modifier.width(13.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("J.A.R.V.I.S.", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+                                Text(if (showSettings) "CENTRO DE CONFIGURACIÓN" else "ASISTENTE PERSONAL", color = cyan, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp)
+                                Spacer(Modifier.height(7.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(7.dp).background(Color(0xFF6EE7A8), CircleShape))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("MEMORIA LOCAL ACTIVA", color = Color(0xFFB8C9D8), fontSize = 9.sp, letterSpacing = 0.7.sp)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text("VERSIÓN 2.7", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
+                            }
+                            if (showSettings) {
+                                TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan, fontSize = 12.sp) }
+                            } else {
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    TextButton(onClick = { showSettings = true }) {
+                                        Text("⚙", color = cyan, fontSize = 23.sp)
+                                    }
+                                    TextButton(onClick = { showClearDialog = true }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
+                                        Text("Limpiar", color = Color(0xFFFFA0A0), fontSize = 10.sp)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -545,9 +596,8 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(14.dp))
-                    Text("LABORATORIO Y PROYECTOS", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                    Text("Código, proyectos y herramientas de desarrollo", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                    Spacer(Modifier.height(8.dp))
+                    SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo")
+                    Spacer(Modifier.height(9.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -638,9 +688,8 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(18.dp))
-                    Text("MEMORIA Y CONOCIMIENTO", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                    Text("Recuerdos y documentos guardados en este dispositivo", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                    Spacer(Modifier.height(8.dp))
+                    SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local")
+                    Spacer(Modifier.height(9.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("MEMORIA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -721,9 +770,8 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(18.dp))
-                    Text("PERSONALIZACIÓN Y HERRAMIENTAS", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                    Text("Extensiones y opciones complementarias", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                    Spacer(Modifier.height(8.dp))
+                    SettingsGroupHeader("✧", "PERSONALIZACIÓN Y HERRAMIENTAS", "Extensiones y funciones complementarias")
+                    Spacer(Modifier.height(9.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("EXTENSIONES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -772,9 +820,8 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("PRODUCTIVIDAD Y PLANIFICACIÓN", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-                            Text("Tareas, agenda, rutinas y objetivos en un solo lugar.", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                            Spacer(Modifier.height(6.dp))
+                            SettingsGroupHeader("◷", "PRODUCTIVIDAD Y PLANIFICACIÓN", "Tareas, agenda, rutinas y objetivos")
+                            Spacer(Modifier.height(9.dp))
                             Text("GESTOR DE TAREAS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Organiza pendientes, prioridades y fechas. Los avisos se programan en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
@@ -878,8 +925,8 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             }
                         }
                     }
-                    Text("SEGURIDAD Y ESTADO DEL ASISTENTE", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                            Spacer(Modifier.height(6.dp))
+                    SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA")
+                            Spacer(Modifier.height(9.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
                             Button(onClick = { pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
