@@ -1,0 +1,36 @@
+name: Construir APK de JARVIS 0.4
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "JARVIS-Android-0.4/**"
+      - ".github/workflows/build-jarvis-04.yml"
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Construir APK
+        run: gradle -p JARVIS-Android-0.4 :app:assembleDebug
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-0.4-debug
+          path: JARVIS-Android-0.4/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
