@@ -27,7 +27,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -96,7 +95,7 @@ fun Jarvis() {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
-        val listState = rememberLazyListState()
+    val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
     val panel = Color(0xFF142238)
     val cyan = Color(0xFF54D6E8)
@@ -104,6 +103,7 @@ fun Jarvis() {
     var lines by remember { mutableStateOf(loadHistory(context)) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showMemoryDialog by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var memoryInput by remember { mutableStateOf("") }
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
@@ -171,90 +171,117 @@ fun Jarvis() {
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text("J.A.R.V.I.S.", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                            Text("ASISTENTE PERSONAL", color = cyan, fontSize = 9.sp, letterSpacing = 1.6.sp)
+                            Text(if (showSettings) "CONFIGURACIÓN" else "ASISTENTE PERSONAL", color = cyan, fontSize = 9.sp, letterSpacing = 1.6.sp)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(6.dp).background(Color(0xFF6EE7A8), CircleShape))
                                 Spacer(Modifier.width(5.dp))
                                 Text("Memoria local activa", color = Color(0xFF9CB4C7), fontSize = 10.sp)
                             }
                         }
-                        TextButton(onClick = { showMemoryDialog = true }) { Text("Memoria", color = cyan, fontSize = 12.sp) }
-                        TextButton(onClick = { showClearDialog = true }) { Text("Borrar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
+                        if (showSettings) {
+                            TextButton(onClick = { showSettings = false }) { Text("Volver", color = cyan) }
+                        } else {
+                            TextButton(onClick = { showSettings = true }) { Text("⚙", color = cyan, fontSize = 24.sp) }
+                            TextButton(onClick = { showClearDialog = true }) { Text("Borrar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
-                }
-                Spacer(Modifier.height(12.dp))
-                Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize().padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(lines) { line ->
-                            Column(Modifier.fillMaxWidth(), horizontalAlignment = if (line.who == "TÚ") Alignment.End else Alignment.Start) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (line.who != "TÚ") {
-                                        Surface(shape = CircleShape, color = Color(0xFF1B4658), modifier = Modifier.size(23.dp)) {
-                                            Box(contentAlignment = Alignment.Center) { Text("J", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                if (showSettings) {
+                    Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("Organiza las opciones de JARVIS sin llenar la pantalla principal.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("MEMORIA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Administra recuerdos por categorías: Personal, Proyectos, Estudios, Metas y Temporal.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = { showMemoryDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("Abrir memoria") }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("ESTADO DE IA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                        }
+                    }
+                } else {
+                    Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize().padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(lines) { line ->
+                                Column(Modifier.fillMaxWidth(), horizontalAlignment = if (line.who == "TÚ") Alignment.End else Alignment.Start) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (line.who != "TÚ") {
+                                            Surface(shape = CircleShape, color = Color(0xFF1B4658), modifier = Modifier.size(23.dp)) {
+                                                Box(contentAlignment = Alignment.Center) { Text("J", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                            }
+                                            Spacer(Modifier.width(6.dp))
                                         }
-                                        Spacer(Modifier.width(6.dp))
-                                    }
-                                    Text(if (line.who == "TÚ") "Tú" else "JARVIS", color = if (line.who == "TÚ") Color(0xFF9CCBEA) else cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    if (line.who == "TÚ") {
-                                        Spacer(Modifier.width(6.dp))
-                                        Surface(shape = CircleShape, color = Color(0xFF24465C), modifier = Modifier.size(23.dp)) {
-                                            Box(contentAlignment = Alignment.Center) { Text("T", color = Color(0xFFB9E4FF), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                        Text(if (line.who == "TÚ") "Tú" else "JARVIS", color = if (line.who == "TÚ") Color(0xFF9CCBEA) else cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        if (line.who == "TÚ") {
+                                            Spacer(Modifier.width(6.dp))
+                                            Surface(shape = CircleShape, color = Color(0xFF24465C), modifier = Modifier.size(23.dp)) {
+                                                Box(contentAlignment = Alignment.Center) { Text("T", color = Color(0xFFB9E4FF), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                            }
                                         }
                                     }
-                                }
-                                Spacer(Modifier.height(4.dp))
-                                Surface(
-                                    color = if (line.who == "TÚ") Color(0xFF17445A) else Color(0xFF1A2D43),
-                                    shape = RoundedCornerShape(
-                                        topStart = 15.dp, topEnd = 15.dp,
-                                        bottomEnd = if (line.who == "TÚ") 5.dp else 15.dp,
-                                        bottomStart = if (line.who == "TÚ") 15.dp else 5.dp
-                                    )
-                                ) {
-                                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                                        Text(line.text, color = Color.White, fontSize = 14.sp)
-                                        Spacer(Modifier.height(5.dp))
-                                        Text(
-                                            SimpleDateFormat("HH:mm", Locale("es", "PE")).format(Date(line.timestamp)),
-                                            color = Color(0xFF91AFC1),
-                                            fontSize = 9.sp,
-                                            modifier = Modifier.align(Alignment.End)
+                                    Spacer(Modifier.height(4.dp))
+                                    Surface(
+                                        color = if (line.who == "TÚ") Color(0xFF17445A) else Color(0xFF1A2D43),
+                                        shape = RoundedCornerShape(
+                                            topStart = 15.dp, topEnd = 15.dp,
+                                            bottomEnd = if (line.who == "TÚ") 5.dp else 15.dp,
+                                            bottomStart = if (line.who == "TÚ") 15.dp else 5.dp
                                         )
+                                    ) {
+                                        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                                            Text(line.text, color = Color.White, fontSize = 14.sp)
+                                            Spacer(Modifier.height(5.dp))
+                                            Text(
+                                                SimpleDateFormat("HH:mm", Locale("es", "PE")).format(Date(line.timestamp)),
+                                                color = Color(0xFF91AFC1),
+                                                fontSize = 9.sp,
+                                                modifier = Modifier.align(Alignment.End)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(color = panel, shape = RoundedCornerShape(24.dp), modifier = Modifier.weight(1f)) {
-                        BasicTextField(
-                            value = input,
-                            onValueChange = { input = it },
-                            modifier = Modifier.fillMaxWidth().padding(15.dp),
-                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                            keyboardActions = KeyboardActions(onSend = { sendMessage() }),
-                            decorationBox = { inner ->
-                                if (input.isEmpty()) Text("Escribe a JARVIS…", color = Color.Gray)
-                                inner()
-                            }
-                        )
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(color = panel, shape = RoundedCornerShape(24.dp), modifier = Modifier.weight(1f)) {
+                            BasicTextField(
+                                value = input,
+                                onValueChange = { input = it },
+                                modifier = Modifier.fillMaxWidth().padding(15.dp),
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                                keyboardActions = KeyboardActions(onSend = { sendMessage() }),
+                                decorationBox = { inner ->
+                                    if (input.isEmpty()) Text("Escribe a JARVIS…", color = Color.Gray)
+                                    inner()
+                                }
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
+                    Spacer(Modifier.height(8.dp))
+                    Text("JARVIS 0.5 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
-                Spacer(Modifier.height(8.dp))
-                Text("JARVIS 0.5 · Modo local", color = Color.Gray, fontSize = 11.sp)
             }
         }
 
