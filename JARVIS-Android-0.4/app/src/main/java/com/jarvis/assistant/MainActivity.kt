@@ -80,6 +80,36 @@ private fun loadTasks(context: android.content.Context): List<JarvisTask> {
         if (title.isBlank()) null else JarvisTask(o.optString("id", java.util.UUID.randomUUID().toString()), title.take(160), o.optString("dueDate", "").take(40), o.optString("priority", "Media").let { if (it in listOf("Alta", "Media", "Baja")) it else "Media" }, o.optBoolean("completed", false))
     } } catch (_: Exception) { emptyList() }
 }
+
+private class JarvisReminderWorker(context: android.content.Context, params: androidx.work.WorkerParameters) : androidx.work.Worker(context, params) {
+    override fun doWork(): Result {
+        val title = inputData.getString("taskTitle") ?: "Tarea pendiente"
+        val manager = applicationContext.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            val channel = android.app.NotificationChannel("jarvis_reminders", "Recordatorios de JARVIS", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            manager.createNotificationChannel(channel)
+        }
+        val intent = android.content.Intent(applicationContext, MainActivity::class.java)
+        val pending = android.app.PendingIntent.getActivity(applicationContext, id.hashCode(), intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        val notification = if (android.os.Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(applicationContext, "jarvis_reminders") else @Suppress("DEPRECATION") android.app.Notification.Builder(applicationContext)
+        manager.notify(id.hashCode(), notification.setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("Recordatorio de JARVIS").setContentText(title).setAutoCancel(true).setContentIntent(pending).build())
+        return Result.success()
+    }
+}
+
+private fun scheduleJarvisReminder(context: android.content.Context, task: JarvisTask) {
+    if (task.completed || task.dueDate.isBlank()) return
+    val formats = listOf(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"), java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+    val trigger = formats.firstNotNullOfOrNull { formatter -> runCatching { java.time.LocalDateTime.parse(task.dueDate.trim(), formatter).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }.getOrNull() } ?: return
+    val delay = trigger - System.currentTimeMillis()
+    if (delay <= 0L) return
+    val request = androidx.work.OneTimeWorkRequestBuilder<JarvisReminderWorker>().setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS).setInputData(androidx.work.workDataOf("taskTitle" to task.title)).addTag("jarvis_reminder_" + task.id).build()
+    androidx.work.WorkManager.getInstance(context).enqueueUniqueWork("jarvis_reminder_" + task.id, androidx.work.ExistingWorkPolicy.REPLACE, request)
+}
+
+private fun cancelJarvisReminder(context: android.content.Context, taskId: String) {
+    androidx.work.WorkManager.getInstance(context).cancelUniqueWork("jarvis_reminder_" + taskId)
+}
 private fun saveTasks(context: android.content.Context, tasks: List<JarvisTask>) {
     val a = JSONArray()
     tasks.forEach { a.put(JSONObject().put("id",it.id).put("title",it.title).put("dueDate",it.dueDate).put("priority",it.priority).put("completed",it.completed)) }
@@ -171,6 +201,8 @@ fun Jarvis() {
     var taskPriority by remember { mutableStateOf("Media") }
     var showTaskDialog by remember { mutableStateOf(false) }
     var showCompletedTasks by remember { mutableStateOf(false) }
+    var reminderPermissionGranted by remember { mutableStateOf(android.os.Build.VERSION.SDK_INT < 33 || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
+    val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> reminderPermissionGranted = granted }
 
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -238,6 +270,7 @@ fun Jarvis() {
                     val created = JarvisTask(java.util.UUID.randomUUID().toString(), title, "", "Media")
                     tasks = tasks + created
                     saveTasks(context, tasks)
+                    scheduleJarvisReminder(context, created)
                     "Listo. Añadí «" + created.title + "» a tus tareas con prioridad media. Puedes decir «mis tareas» para consultarlas."
                 }
             } else if (taskListIntent) {
@@ -248,6 +281,7 @@ fun Jarvis() {
                 val match = tasks.firstOrNull { !it.completed && it.title.equals(title, ignoreCase = true) }
                 if (match == null) "No encontré una tarea pendiente con ese nombre exacto. Escribe «mis tareas» para consultar los nombres." else {
                     tasks = tasks.map { if (it.id == match.id) it.copy(completed = true) else it }
+                    cancelJarvisReminder(context, match.id)
                     saveTasks(context, tasks)
                     "Marcada como completada: «" + match.title + "»."
                 }
@@ -256,6 +290,7 @@ fun Jarvis() {
                 val match = tasks.firstOrNull { it.title.equals(title, ignoreCase = true) }
                 if (match == null) "No encontré una tarea con ese nombre exacto. Escribe «mis tareas» para consultar los nombres." else {
                     tasks = tasks.filterNot { it.id == match.id }
+                    cancelJarvisReminder(context, match.id)
                     saveTasks(context, tasks)
                     "Eliminé la tarea «" + match.title + "» de este dispositivo."
                 }
@@ -476,9 +511,11 @@ fun Jarvis() {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("GESTOR DE TAREAS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                            Text("Organiza pendientes, prioridades y fechas. Todo se guarda localmente.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Text("Organiza pendientes, prioridades y fechas. Los avisos se programan en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("${tasks.count { !it.completed }} pendiente(s) · ${tasks.count { it.completed }} completada(s)", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(if (reminderPermissionGranted) "Notificaciones activadas" else "Activa las notificaciones para recibir recordatorios.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                            if (!reminderPermissionGranted && android.os.Build.VERSION.SDK_INT >= 33) { TextButton(onClick = { reminderPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }) { Text("Permitir notificaciones") } }
                             Button(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva tarea") }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Mostrar completadas", color = Color(0xFFB8C9D8), fontSize = 12.sp, modifier = Modifier.weight(1f))
@@ -591,7 +628,7 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 1.0 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.1 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
@@ -602,12 +639,12 @@ fun Jarvis() {
                 Column {
                     OutlinedTextField(value = taskTitle, onValueChange = { taskTitle = it.take(160) }, label = { Text("¿Qué necesitas hacer?") })
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = taskDueDate, onValueChange = { taskDueDate = it.take(40) }, label = { Text("Fecha límite (opcional)") }, placeholder = { Text("Ej. 15/11/2026") }, singleLine = true)
+                    OutlinedTextField(value = taskDueDate, onValueChange = { taskDueDate = it.take(40) }, label = { Text("Fecha límite (opcional)") }, placeholder = { Text("yyyy-MM-dd HH:mm (ej. 2026-11-15 18:30)") }, singleLine = true)
                     Spacer(Modifier.height(8.dp))
                     Text("Prioridad", color = cyan, fontSize = 12.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) { listOf("Alta","Media","Baja").forEach { option -> Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) { RadioButton(selected = taskPriority == option, onClick = { taskPriority = option }); Text(option, color = Color.White, fontSize = 10.sp) } } }
                 }
-            }, confirmButton = { TextButton(onClick = { val title = taskTitle.trim(); if(title.isNotBlank()) { tasks = tasks + JarvisTask(java.util.UUID.randomUUID().toString(),title,taskDueDate.trim(),taskPriority); saveTasks(context,tasks); showTaskDialog = false } }, enabled = taskTitle.isNotBlank()) { Text("Guardar tarea") } }, dismissButton = { TextButton(onClick = { showTaskDialog = false }) { Text("Cancelar") } })
+            }, confirmButton = { TextButton(onClick = { val title = taskTitle.trim(); if(title.isNotBlank()) { val created = JarvisTask(java.util.UUID.randomUUID().toString(),title,taskDueDate.trim(),taskPriority); tasks = tasks + created; saveTasks(context,tasks); scheduleJarvisReminder(context,created); showTaskDialog = false } }, enabled = taskTitle.isNotBlank()) { Text("Guardar tarea") } }, dismissButton = { TextButton(onClick = { showTaskDialog = false }) { Text("Cancelar") } })
         }
 
         if (showExtensionHelp) {
