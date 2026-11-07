@@ -129,6 +129,10 @@ fun Jarvis() {
     var showExtensionHelp by remember { mutableStateOf(false) }
     var extensionStatus by remember { mutableStateOf("") }
     var extensions by remember { mutableStateOf(ExtensionManager.list(context)) }
+    var knowledgeDocs by remember { mutableStateOf(KnowledgeLibrary.list(context)) }
+    var knowledgeQuery by remember { mutableStateOf("") }
+    var knowledgeStatus by remember { mutableStateOf("") }
+    var knowledgeResults by remember { mutableStateOf(emptyList<KnowledgeMatch>()) }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -142,6 +146,22 @@ fun Jarvis() {
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
+
+    val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                val stream = context.contentResolver.openInputStream(uri)
+                    ?: throw IllegalArgumentException("No se pudo abrir el archivo.")
+                val displayName = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "documento.txt"
+                val added = KnowledgeLibrary.import(context, displayName, stream)
+                knowledgeDocs = KnowledgeLibrary.list(context)
+                knowledgeStatus = "Documento importado: " + added.name
+                knowledgeResults = emptyList()
+            } catch (error: Exception) {
+                knowledgeStatus = error.message ?: "No se pudo importar el documento."
+            }
+        }
+    }
 
     val extensionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -260,7 +280,52 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("BIBLIOTECA DE CONOCIMIENTO Y CÓDIGOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Importa apuntes y archivos de texto o código. JARVIS los guarda dentro de esta aplicación y permite buscar palabras en ellos sin Internet. Los archivos se analizan como texto: nunca se ejecutan.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Formatos: TXT, MD, JSON, XML, KT, JAVA, PY, JS, HTML, CSS, GRADLE, KTS y CSV. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                            Button(onClick = { knowledgePicker.launch(arrayOf("text/*", "application/json", "application/xml", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento o código") }
+                            if (knowledgeStatus.isNotBlank()) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(knowledgeStatus, color = Color(0xFFFFD28A), fontSize = 11.sp)
+                            }
+                            Text("Documentos guardados: ${knowledgeDocs.size}", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            if (knowledgeDocs.isEmpty()) Text("La biblioteca está vacía.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            knowledgeDocs.forEach { doc ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(doc.name, color = Color.White, fontSize = 12.sp)
+                                        Text("${doc.size / 1024} KB", color = Color(0xFF8FAABD), fontSize = 10.sp)
+                                    }
+                                    TextButton(onClick = {
+                                        if (KnowledgeLibrary.remove(context, doc.id)) {
+                                            knowledgeDocs = KnowledgeLibrary.list(context)
+                                            knowledgeResults = knowledgeResults.filterNot { it.document.id == doc.id }
+                                            knowledgeStatus = "Documento eliminado."
+                                        }
+                                    }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(value = knowledgeQuery, onValueChange = { knowledgeQuery = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Buscar en la biblioteca") }, singleLine = true)
+                            Button(onClick = {
+                                knowledgeResults = KnowledgeLibrary.search(context, knowledgeQuery)
+                                knowledgeStatus = if (knowledgeQuery.isBlank()) "Escribe una palabra o frase para buscar." else "Coincidencias encontradas: ${knowledgeResults.size}"
+                            }, enabled = knowledgeQuery.isNotBlank() && knowledgeDocs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Buscar") }
+                            knowledgeResults.forEach { match ->
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Text(match.document.name, color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text(match.excerpt, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                    }
+                                }
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
@@ -416,7 +481,7 @@ fun Jarvis() {
                         Text("Ejemplo completo:", color = cyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Text("{\n  \"format\": \"jarvis-extension\",\n  \"formatVersion\": 1,\n  \"id\": \"com.ejemplo.ayudante-estudio\",\n  \"name\": \"Ayudante de estudio\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Organiza temas de estudio\",\n  \"capabilities\": [\"knowledge.search\"],\n  \"content\": {\n    \"instructions\": \"Ayuda a ordenar temas y apuntes.\",\n    \"knowledge\": []\n  }\n}", color = Color(0xFFD5E7F2), fontSize = 10.sp)
                         Spacer(Modifier.height(8.dp))
-                        Text("Este es un ejemplo de plantilla. La importación e instalación desde la app todavía debe implementarse. JARVIS no ejecutará scripts ni código externo.", color = Color(0xFFFFD28A), fontSize = 11.sp)
+                        Text("Este es un ejemplo de plantilla. JARVIS valida e importa extensiones declarativas, pero todavía no ejecuta sus capacidades. Tampoco ejecuta scripts ni código externo.", color = Color(0xFFFFD28A), fontSize = 11.sp)
                     }
                 },
                 confirmButton = { TextButton(onClick = { showExtensionHelp = false }) { Text("Entendido") } }
