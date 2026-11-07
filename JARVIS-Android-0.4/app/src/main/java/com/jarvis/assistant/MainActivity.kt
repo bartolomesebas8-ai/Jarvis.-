@@ -91,8 +91,15 @@ private class JarvisReminderWorker(context: android.content.Context, params: and
         }
         val intent = android.content.Intent(applicationContext, MainActivity::class.java)
         val pending = android.app.PendingIntent.getActivity(applicationContext, id.hashCode(), intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
-        val notification = if (android.os.Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(applicationContext, "jarvis_reminders") else @Suppress("DEPRECATION") android.app.Notification.Builder(applicationContext)
-        manager.notify(id.hashCode(), notification.setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("Recordatorio de JARVIS").setContentText(title).setAutoCancel(true).setContentIntent(pending).build())
+        if (android.os.Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(applicationContext, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return Result.success()
+        val notification = androidx.core.app.NotificationCompat.Builder(applicationContext, "jarvis_reminders")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Recordatorio de JARVIS")
+            .setContentText(title)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+        manager.notify(id.hashCode(), notification)
         return Result.success()
     }
 }
