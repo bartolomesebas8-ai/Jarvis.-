@@ -127,6 +127,31 @@ private fun taskLocalDate(value: String): java.time.LocalDate? {
     }
 }
 
+data class JarvisGoal(val id: String, val title: String, val category: String, val progress: Float = 0f, val taskIds: List<String> = emptyList())
+private const val GOALS_KEY = "jarvis_goals"
+private fun loadGoals(context: android.content.Context): List<JarvisGoal> {
+    val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(GOALS_KEY, null) ?: return emptyList()
+    return try {
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { i ->
+            val item = array.optJSONObject(i) ?: return@mapNotNull null
+            val title = item.optString("title", "").trim()
+            if (title.isBlank()) null else {
+                val ids = item.optJSONArray("taskIds")
+                JarvisGoal(item.optString("id", java.util.UUID.randomUUID().toString()), title.take(120), item.optString("category", "Personal").take(40), item.optDouble("progress", 0.0).toFloat().coerceIn(0f, 100f), if (ids == null) emptyList() else (0 until ids.length()).map { ids.optString(it) })
+            }
+        }
+    } catch (_: Exception) { emptyList() }
+}
+private fun saveGoals(context: android.content.Context, goals: List<JarvisGoal>) {
+    val array = JSONArray()
+    goals.forEach { goal ->
+        val ids = JSONArray()
+        goal.taskIds.forEach { ids.put(it) }
+        array.put(JSONObject().put("id", goal.id).put("title", goal.title).put("category", goal.category).put("progress", goal.progress.toDouble()).put("taskIds", ids))
+    }
+    context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(GOALS_KEY, array.toString()).commit()
+}
 private fun saveTasks(context: android.content.Context, tasks: List<JarvisTask>) {
     val a = JSONArray()
     tasks.forEach { a.put(JSONObject().put("id",it.id).put("title",it.title).put("dueDate",it.dueDate).put("priority",it.priority).put("completed",it.completed)) }
@@ -213,6 +238,11 @@ fun Jarvis() {
     var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
     var tasks by remember { mutableStateOf(loadTasks(context)) }
+    var goals by remember { mutableStateOf(loadGoals(context)) }
+    var goalTitle by remember { mutableStateOf("") }
+    var goalCategory by remember { mutableStateOf("Personal") }
+    var showGoalDialog by remember { mutableStateOf(false) }
+    var linkingGoalId by remember { mutableStateOf<String?>(null) }
     var taskTitle by remember { mutableStateOf("") }
     var taskDueDate by remember { mutableStateOf("") }
     var taskPriority by remember { mutableStateOf("Media") }
@@ -583,7 +613,31 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("SEGURIDAD", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                                Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("METAS Y OBJETIVOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Text("Define objetivos, registra avances y relaciónalos con tus tareas.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("${goals.count { it.progress < 100f }} activa(s) · ${goals.count { it.progress >= 100f }} finalizada(s)", color = cyan, fontSize = 12.sp)
+                            Button(onClick = { goalTitle = ""; goalCategory = "Personal"; showGoalDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva meta") }
+                            if (goals.isEmpty()) Text("Todavía no tienes metas. Crea una para comenzar.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            goals.forEach { goal ->
+                                Spacer(Modifier.height(8.dp))
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f)) { Text(goal.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(goal.category + " · " + goal.taskIds.size + " tarea(s) vinculada(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp) }
+                                            TextButton(onClick = { goals = goals.filterNot { it.id == goal.id }; saveGoals(context, goals) }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 10.sp) }
+                                        }
+                                        Slider(value = goal.progress, onValueChange = { value -> goals = goals.map { if (it.id == goal.id) it.copy(progress = value) else it } }, onValueChangeFinished = { saveGoals(context, goals) }, valueRange = 0f..100f)
+                                        Text("${goal.progress.toInt()}% completado", color = cyan, fontSize = 11.sp)
+                                        TextButton(onClick = { linkingGoalId = goal.id }) { Text("Vincular una tarea", color = cyan, fontSize = 11.sp) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text("SEGURIDAD", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Spacer(Modifier.height(6.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
@@ -670,12 +724,32 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 1.2 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.3 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
 
 
+        if (showGoalDialog) {
+            AlertDialog(onDismissRequest = { showGoalDialog = false }, title = { Text("Nueva meta") }, text = {
+                Column {
+                    OutlinedTextField(value = goalTitle, onValueChange = { goalTitle = it.take(120) }, label = { Text("¿Qué quieres lograr?") }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Categoría", color = cyan, fontSize = 12.sp)
+                    Row { listOf("Personal", "Estudios", "Proyectos").forEach { category -> TextButton(onClick = { goalCategory = category }) { Text(if (goalCategory == category) "✓ " + category else category, color = if (goalCategory == category) cyan else Color.White, fontSize = 10.sp) } } }
+                }
+            }, confirmButton = { TextButton(onClick = { val title = goalTitle.trim(); if (title.isNotBlank()) { goals = goals + JarvisGoal(java.util.UUID.randomUUID().toString(), title, goalCategory); saveGoals(context, goals); showGoalDialog = false } }, enabled = goalTitle.isNotBlank()) { Text("Crear meta") } }, dismissButton = { TextButton(onClick = { showGoalDialog = false }) { Text("Cancelar") } })
+        }
+        if (linkingGoalId != null) {
+            val goal = goals.firstOrNull { it.id == linkingGoalId }
+            AlertDialog(onDismissRequest = { linkingGoalId = null }, title = { Text("Vincular tarea") }, text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    Text("Selecciona una tarea para relacionarla con esta meta.", fontSize = 12.sp)
+                    tasks.forEach { task -> TextButton(onClick = { goals = goals.map { item -> if (item.id == linkingGoalId && task.id !in item.taskIds) item.copy(taskIds = item.taskIds + task.id) else item }; saveGoals(context, goals); linkingGoalId = null }, enabled = goal != null && task.id !in goal.taskIds, modifier = Modifier.fillMaxWidth()) { Text(task.title, color = Color.White) } }
+                    if (tasks.isEmpty()) Text("Primero crea una tarea en el gestor.", color = Color(0xFFB8C9D8))
+                }
+            }, confirmButton = { TextButton(onClick = { linkingGoalId = null }) { Text("Cerrar") } })
+        }
         if (showTaskDialog) {
             AlertDialog(onDismissRequest = { showTaskDialog = false }, title = { Text("Nueva tarea") }, text = {
                 Column {
