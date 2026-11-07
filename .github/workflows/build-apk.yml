@@ -31,18 +31,29 @@ jobs:
         run: |
           set -e
           ZIP="$(find . -maxdepth 2 -type f -iname 'JARVIS-listo-para-subir.zip' -print -quit)"
-          if [ -z "$ZIP" ]; then
-            echo "No se encontró el ZIP"
-            exit 1
-          fi
           mkdir -p extracted
           unzip -o "$ZIP" -d extracted
           PROJECT_DIR="$(find extracted -type f -name settings.gradle.kts -printf '%h\n' | head -n 1)"
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "No se encontró settings.gradle.kts"
-            exit 1
-          fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Corregir versiones Java y Kotlin
+        shell: bash
+        run: |
+          python3 - "$PROJECT_DIR/app/build.gradle.kts" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          s = p.read_text()
+          s = s.replace('android {', '''android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }''', 1)
+          p.write_text(s)
+          PY
 
       - name: Construir APK
         run: gradle -p "$PROJECT_DIR" assembleDebug
