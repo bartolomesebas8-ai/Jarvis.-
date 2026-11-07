@@ -508,27 +508,41 @@ fun Jarvis() {
                     Spacer(Modifier.height(14.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("CODE GUARD · ANÁLISIS DE CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Importa código para inspeccionarlo sin ejecutarlo. Esta primera etapa usa reglas estáticas heurísticas; no garantiza detectar todo el código malicioso. La ejecución permanece deshabilitada.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
-                            Spacer(Modifier.height(10.dp))
-                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Analizar archivo de código") }
-                            if (codeGuardStatus.isNotBlank()) {
-                                Spacer(Modifier.height(8.dp))
-                                Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
+                            Text("Crea espacios separados para cada fragmento o proyecto. Puedes pegarlos o importar archivos; cada espacio se analiza por separado. JARVIS nunca ejecuta el código.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            OutlinedTextField(value = codeWorkspaceName, onValueChange = { codeWorkspaceName = it.take(60) }, modifier = Modifier.fillMaxWidth(), label = { Text("Nombre del espacio") }, singleLine = true)
+                            OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código (máximo 200 000 caracteres)") }, minLines = 4, maxLines = 8)
+                            Button(onClick = { try { require(codeWorkspaceName.isNotBlank()) { "Escribe un nombre para el espacio." }; require(codeWorkspaceSource.isNotBlank()) { "Pega código antes de guardar." }; val existing = codeWorkspaces.firstOrNull { it.name.equals(codeWorkspaceName.trim(), true) }; val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), codeWorkspaceName.trim(), codeWorkspaceSource); codeWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceName = ""; codeWorkspaceSource = ""; codeGuardStatus = "Espacio guardado por separado." } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el espacio." } }, enabled = codeWorkspaceName.isNotBlank() && codeWorkspaceSource.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar espacio de código") }
+                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo como espacio separado") }
+                            if (codeGuardStatus.isNotBlank()) Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
+                            Text("Espacios guardados: " + codeWorkspaces.size + " / 20", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            codeWorkspaces.forEach { workspace ->
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
+                                    Text(workspace.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(workspace.source.length.toString() + " caracteres · aislado de los demás espacios", color = Color(0xFF8FAABD), fontSize = 10.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TextButton(onClick = { codeWorkspaceName = workspace.name; codeWorkspaceSource = workspace.source }) { Text("Editar", color = cyan) }
+                                        TextButton(onClick = { codeWorkspaceReports = codeWorkspaceReports + (workspace.id to CodeGuardAnalyzer.analyze(workspace.name, workspace.source)) }) { Text("Analizar", color = cyan) }
+                                        TextButton(onClick = { codeWorkspaces = codeWorkspaces.filterNot { it.id == workspace.id }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceReports = codeWorkspaceReports - workspace.id; if (selectedCodeA == workspace.id) selectedCodeA = ""; if (selectedCodeB == workspace.id) selectedCodeB = "" }) { Text("Eliminar", color = Color(0xFFFF9B9B)) }
+                                    }
+                                    codeWorkspaceReports[workspace.id]?.let { report ->
+                                        Text("Análisis: " + report.language + " · " + report.analyzedLines + " líneas", color = cyan, fontSize = 11.sp)
+                                        Text(report.summary, color = Color(0xFFFFD28A), fontSize = 11.sp)
+                                        report.findings.take(12).forEach { finding -> Text("Línea " + finding.line + " · " + finding.risk + " · " + finding.title + ": " + finding.explanation, color = Color(0xFFB8C9D8), fontSize = 10.sp) }
+                                        if (report.findings.isEmpty()) Text("Sin coincidencias; no demuestra que sea seguro.", color = Color(0xFFFFD28A), fontSize = 10.sp)
+                                    }
+                                } }
                             }
-                            codeGuardReport?.let { report ->
-                                Spacer(Modifier.height(10.dp))
-                                Text("Lenguaje: " + report.language + " · Líneas: " + report.analyzedLines, color = Color.White, fontSize = 12.sp)
-                                Text(report.summary, color = if (report.findings.any { it.risk == CodeRisk.HIGH || it.risk == CodeRisk.CRITICAL }) Color(0xFFFF9B9B) else Color(0xFFFFD28A), fontSize = 12.sp)
-                                report.findings.take(30).forEach { finding ->
-                                    Spacer(Modifier.height(7.dp))
-                                    Text("Línea " + finding.line + " · " + finding.risk + " · " + finding.title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    Text(finding.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                    if (finding.evidence.isNotBlank()) Text(finding.evidence, color = Color(0xFF8FAABD), fontSize = 10.sp)
-                                }
-                                if (report.findings.isEmpty()) Text("No hubo coincidencias en las reglas actuales. Esto no significa que el archivo sea seguro.", color = Color(0xFFFFD28A), fontSize = 11.sp)
-                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text("COMPARAR POSIBLES CONFLICTOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            var compareAExpanded by remember { mutableStateOf(false) }
+                            var compareBExpanded by remember { mutableStateOf(false) }
+                            Box { OutlinedButton(onClick = { compareAExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Espacio A: " + (codeWorkspaces.firstOrNull { it.id == selectedCodeA }?.name ?: "Seleccionar")) }; DropdownMenu(expanded = compareAExpanded, onDismissRequest = { compareAExpanded = false }) { codeWorkspaces.forEach { item -> DropdownMenuItem(text = { Text(item.name) }, onClick = { selectedCodeA = item.id; compareAExpanded = false }) } } }
+                            Box { OutlinedButton(onClick = { compareBExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Espacio B: " + (codeWorkspaces.firstOrNull { it.id == selectedCodeB }?.name ?: "Seleccionar")) }; DropdownMenu(expanded = compareBExpanded, onDismissRequest = { compareBExpanded = false }) { codeWorkspaces.forEach { item -> DropdownMenuItem(text = { Text(item.name) }, onClick = { selectedCodeB = item.id; compareBExpanded = false }) } } }
+                            Button(onClick = { val first = codeWorkspaces.firstOrNull { it.id == selectedCodeA }; val second = codeWorkspaces.firstOrNull { it.id == selectedCodeB }; codeComparison = if (first == null || second == null) listOf("Selecciona dos espacios guardados.") else if (first.id == second.id) listOf("Selecciona dos espacios diferentes.") else CodeWorkspaces.compare(first, second) }, enabled = codeWorkspaces.size >= 2, modifier = Modifier.fillMaxWidth()) { Text("Comparar compatibilidad") }
+                            codeComparison.forEach { Text("• " + it, color = Color(0xFFFFD28A), fontSize = 11.sp) }
+                            Text("El comparador usa patrones de texto: puede omitir conflictos o señalar coincidencias que no son errores. No compila, ejecuta ni fusiona código.", color = Color(0xFFFFD28A), fontSize = 10.sp)
                         }
                     }
                     Spacer(Modifier.height(18.dp))
