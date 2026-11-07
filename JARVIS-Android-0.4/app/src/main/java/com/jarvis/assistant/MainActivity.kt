@@ -127,7 +127,8 @@ fun Jarvis() {
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
-    var pinCurrent by remember { mutableStateOf("") }\n    var pinFirst by remember { mutableStateOf("") }
+    var pinCurrent by remember { mutableStateOf("") }
+    var pinFirst by remember { mutableStateOf("") }
     var pinSecond by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
     var pinConfigured by remember { mutableStateOf(hasSecurityPin(context)) }
@@ -339,7 +340,8 @@ fun Jarvis() {
                 Column {
                     Text("Elige un código de 6 dígitos. No lo compartas ni lo escribas en el chat.", fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
-                    if (pinConfigured) { OutlinedTextField(value = pinCurrent, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinCurrent = it }, label = { Text("Código actual") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true); Spacer(Modifier.height(8.dp)) }\n                    OutlinedTextField(value = pinFirst, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinFirst = it }, label = { Text("Nuevo código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+                    if (pinConfigured) { OutlinedTextField(value = pinCurrent, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinCurrent = it }, label = { Text("Código actual") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true); Spacer(Modifier.height(8.dp)) }
+                    OutlinedTextField(value = pinFirst, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinFirst = it }, label = { Text("Nuevo código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = pinSecond, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinSecond = it }, label = { Text("Confirmar código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
                     if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF9B9B), fontSize = 12.sp)
