@@ -600,10 +600,7 @@ fun Jarvis() {
                     Text("Todo en su lugar: herramientas, memoria, productividad y protección.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text("ÍNDICE DE CONFIGURACIÓN", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            Text("1. Laboratorio y proyectos  ·  2. Memoria y conocimiento  ·  3. Personalización y herramientas  ·  4. Productividad  ·  5. Seguridad e IA", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                        }
+                        Text("Toca una carpeta para desplegar su contenido. Solo una carpeta permanece abierta a la vez.", color = Color(0xFFB8C9D8), fontSize = 11.sp, modifier = Modifier.padding(12.dp))
                     }
                     Spacer(Modifier.height(14.dp))
                     SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
@@ -944,22 +941,20 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                     }
                     SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
                     if (expandedSettingsFolder == "security") {
-                    Spacer(Modifier.height(9.dp))
-                            Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
-                            Spacer(Modifier.height(10.dp))
-                            Button(onClick = { pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
+                        Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("SEGURIDAD DEL DISPOSITIVO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                                Spacer(Modifier.height(7.dp))
+                                Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para proteger futuras funciones.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                                Spacer(Modifier.height(10.dp))
+                                Button(onClick = { pinCurrent = ""; pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
+                                Spacer(Modifier.height(14.dp))
+                                Text("ESTADO DE IA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                Spacer(Modifier.height(6.dp))
+                                Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            }
                         }
-                    }
-                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("ESTADO DE IA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                            Spacer(Modifier.height(6.dp))
-                            Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
-                        }
-                    }
-                    }
-                    }
-                } else {
+                    }                } else {
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
                     }
