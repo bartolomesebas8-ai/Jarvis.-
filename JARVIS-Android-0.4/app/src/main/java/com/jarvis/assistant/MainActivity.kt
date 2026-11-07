@@ -143,6 +143,32 @@ private fun loadGoals(context: android.content.Context): List<JarvisGoal> {
         }
     } catch (_: Exception) { emptyList() }
 }
+data class JarvisRoutine(val id: String, val title: String, val cadence: String, val completedDates: List<String> = emptyList())
+private const val ROUTINES_KEY = "jarvis_routines"
+private fun loadRoutines(context: android.content.Context): List<JarvisRoutine> {
+    val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getString(ROUTINES_KEY, null) ?: return emptyList()
+    return try {
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { i ->
+            val item = array.optJSONObject(i) ?: return@mapNotNull null
+            val title = item.optString("title", "").trim()
+            if (title.isBlank()) null else {
+                val dates = item.optJSONArray("completedDates")
+                JarvisRoutine(item.optString("id", java.util.UUID.randomUUID().toString()), title.take(120), item.optString("cadence", "Diaria"), if (dates == null) emptyList() else (0 until dates.length()).map { dates.optString(it) }.takeLast(365))
+            }
+        }
+    } catch (_: Exception) { emptyList() }
+}
+private fun saveRoutines(context: android.content.Context, routines: List<JarvisRoutine>) {
+    val array = JSONArray()
+    routines.forEach { routine ->
+        val dates = JSONArray()
+        routine.completedDates.distinct().takeLast(365).forEach { dates.put(it) }
+        array.put(JSONObject().put("id", routine.id).put("title", routine.title).put("cadence", routine.cadence).put("completedDates", dates))
+    }
+    context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(ROUTINES_KEY, array.toString()).commit()
+}
+private fun routineDateKey(date: java.time.LocalDate = java.time.LocalDate.now()): String = date.toString()
 private fun saveGoals(context: android.content.Context, goals: List<JarvisGoal>) {
     val array = JSONArray()
     goals.forEach { goal ->
@@ -239,6 +265,10 @@ fun Jarvis() {
     var memories by remember { mutableStateOf(loadMemories(context)) }
     var tasks by remember { mutableStateOf(loadTasks(context)) }
     var goals by remember { mutableStateOf(loadGoals(context)) }
+    var routines by remember { mutableStateOf(loadRoutines(context)) }
+    var routineTitle by remember { mutableStateOf("") }
+    var routineCadence by remember { mutableStateOf("Diaria") }
+    var showRoutineDialog by remember { mutableStateOf(false) }
     var goalTitle by remember { mutableStateOf("") }
     var goalCategory by remember { mutableStateOf("Personal") }
     var showGoalDialog by remember { mutableStateOf(false) }
@@ -616,7 +646,33 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                                 Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("METAS Y OBJETIVOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                                Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("RUTINAS Y HÁBITOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Text("Construye constancia con actividades diarias o semanales. Tu historial se guarda en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Button(onClick = { routineTitle = ""; routineCadence = "Diaria"; showRoutineDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva rutina") }
+                            if (routines.isEmpty()) Text("Aún no tienes rutinas creadas.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            val todayKey = routineDateKey()
+                            routines.forEach { routine ->
+                                val doneToday = todayKey in routine.completedDates
+                                val lastWeek = routine.completedDates.count { runCatching { java.time.LocalDate.parse(it) }.getOrNull()?.let { date -> !date.isBefore(java.time.LocalDate.now().minusDays(6)) && !date.isAfter(java.time.LocalDate.now()) } == true }
+                                Spacer(Modifier.height(8.dp))
+                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Column(Modifier.padding(10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f)) { Text(routine.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(routine.cadence + " · " + routine.completedDates.size + " registro(s) histórico(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp) }
+                                            TextButton(onClick = { routines = routines.filterNot { it.id == routine.id }; saveRoutines(context, routines) }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 10.sp) }
+                                        }
+                                        Button(onClick = { routines = routines.map { item -> if (item.id == routine.id) item.copy(completedDates = if (doneToday) item.completedDates.filterNot { it == todayKey } else (item.completedDates + todayKey).distinct().takeLast(365)) else item }; saveRoutines(context, routines) }, modifier = Modifier.fillMaxWidth()) { Text(if (doneToday) "✓ Hecho hoy · Deshacer" else "Marcar como realizada hoy") }
+                                        Text("Últimos 7 días: " + lastWeek + " realización(es)", color = cyan, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text("METAS Y OBJETIVOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Define objetivos, registra avances y relaciónalos con tus tareas.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Text("${goals.count { it.progress < 100f }} activa(s) · ${goals.count { it.progress >= 100f }} finalizada(s)", color = cyan, fontSize = 12.sp)
                             Button(onClick = { goalTitle = ""; goalCategory = "Personal"; showGoalDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva meta") }
@@ -724,12 +780,22 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 1.3 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.4 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
 
 
+        if (showRoutineDialog) {
+            AlertDialog(onDismissRequest = { showRoutineDialog = false }, title = { Text("Nueva rutina") }, text = {
+                Column {
+                    OutlinedTextField(value = routineTitle, onValueChange = { routineTitle = it.take(120) }, label = { Text("Actividad o hábito") }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Frecuencia", color = cyan, fontSize = 12.sp)
+                    Row { listOf("Diaria", "Semanal").forEach { cadence -> TextButton(onClick = { routineCadence = cadence }) { Text(if (routineCadence == cadence) "✓ " + cadence else cadence, color = if (routineCadence == cadence) cyan else Color.White) } } }
+                }
+            }, confirmButton = { TextButton(onClick = { val title = routineTitle.trim(); if (title.isNotBlank()) { routines = routines + JarvisRoutine(java.util.UUID.randomUUID().toString(), title, routineCadence); saveRoutines(context, routines); showRoutineDialog = false } }, enabled = routineTitle.isNotBlank()) { Text("Crear rutina") } }, dismissButton = { TextButton(onClick = { showRoutineDialog = false }) { Text("Cancelar") } })
+        }
         if (showGoalDialog) {
             AlertDialog(onDismissRequest = { showGoalDialog = false }, title = { Text("Nueva meta") }, text = {
                 Column {
