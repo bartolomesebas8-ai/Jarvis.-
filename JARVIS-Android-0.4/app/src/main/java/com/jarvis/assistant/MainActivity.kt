@@ -259,6 +259,9 @@ fun Jarvis() {
     var codeRunResults by remember { mutableStateOf(emptyMap<String, CodeRunResult>()) }
     var codeRunDetails by remember { mutableStateOf(emptySet<String>()) }
     var codeRunningIds by remember { mutableStateOf(emptySet<String>()) }
+    var pendingCodeRun by remember { mutableStateOf<CodeWorkspace?>(null) }
+    var codeConsentReady by remember { mutableStateOf(false) }
+    LaunchedEffect(pendingCodeRun?.id) { codeConsentReady = false; if (pendingCodeRun != null) { delay(30_000); codeConsentReady = true } }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -540,8 +543,8 @@ fun Jarvis() {
                             Spacer(Modifier.height(8.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
                                 Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("NO COMPATIBLE · Los motores de ejecución aún no están integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
-                                Text("Por ahora puedes guardar, analizar y comparar código. JARVIS no dirá FUNCIONA ni NO FUNCIONA sobre un programa que no haya podido ejecutar realmente.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                Text("JavaScript disponible · otros motores aún no integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Text("Cada ejecución requiere revisión y confirmación. La prueba está limitada: sin acceso a datos personales, archivos del teléfono, red ni procesos del sistema.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                             } }
                             codeWorkspaces.forEach { workspace ->
                                 Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
@@ -549,7 +552,7 @@ fun Jarvis() {
                                     Text(workspace.source.length.toString() + " caracteres · aislado de los demás espacios", color = Color(0xFF8FAABD), fontSize = 10.sp)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         TextButton(onClick = { codeWorkspaceName = workspace.name; codeWorkspaceSource = workspace.source }) { Text("Editar", color = cyan) }
-                                        TextButton(onClick = { if (workspace.name.substringAfterLast(".", "").lowercase() in listOf("js", "mjs")) { codeRunningIds = codeRunningIds + workspace.id; JavaScriptRunner.run(context, workspace.source) { result -> codeRunResults = codeRunResults + (workspace.id to result); codeRunningIds = codeRunningIds - workspace.id; codeRunDetails = codeRunDetails - workspace.id } } else { codeRunResults = codeRunResults + (workspace.id to CodeRunResult(false, "NO COMPATIBLE", "Esta versión ejecuta únicamente archivos JavaScript (.js o .mjs). El resto se puede analizar, pero no ejecutar todavía.")) } }) { Text(if (workspace.id in codeRunningIds) "Ejecutando…" else "Ejecutar", color = Color(0xFF9FE6B8)) }
+                                        TextButton(onClick = { pendingCodeRun = workspace }) { Text(if (workspace.id in codeRunningIds) "Ejecutando…" else "Ejecutar", color = Color(0xFF9FE6B8)) }
                                         TextButton(onClick = { codeWorkspaceReports = codeWorkspaceReports + (workspace.id to CodeGuardAnalyzer.analyze(workspace.name, workspace.source)) }) { Text("Analizar", color = cyan) }
                                         TextButton(onClick = { codeWorkspaces = codeWorkspaces.filterNot { it.id == workspace.id }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceReports = codeWorkspaceReports - workspace.id; if (selectedCodeA == workspace.id) selectedCodeA = ""; if (selectedCodeB == workspace.id) selectedCodeB = "" }) { Text("Eliminar", color = Color(0xFFFF9B9B)) }
                                     }
@@ -1133,6 +1136,42 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         }) { Text("Cerrar") }
                     }
                 }
+            )
+        }
+
+        if (pendingCodeRun != null) {
+            val candidate = pendingCodeRun!!
+            val report = remember(candidate.id, candidate.source) { CodeGuardAnalyzer.analyze(candidate.name, candidate.source) }
+            AlertDialog(
+                onDismissRequest = { pendingCodeRun = null },
+                title = { Text("Revisión antes de ejecutar") },
+                text = {
+                    Column {
+                        Text("JARVIS revisó el código de forma estática. Esta revisión es heurística y no garantiza detectar todo.")
+                        Spacer(Modifier.height(8.dp))
+                        Text("Archivo: ${candidate.name}", fontWeight = FontWeight.Bold)
+                        Text("Señales encontradas: ${report.findings.size}")
+                        report.findings.take(6).forEach { finding -> Text("• ${finding.title}: ${finding.explanation}", fontSize = 12.sp) }
+                        if (report.findings.size > 6) Text("Y ${report.findings.size - 6} señales más.")
+                        Spacer(Modifier.height(8.dp))
+                        Text("Permisos concedidos: ninguno. La ejecución de JavaScript permanece aislada y no recibe acceso a datos personales, archivos, red, cuentas, sensores ni procesos del sistema.")
+                        Text("No se puede habilitar acceso a información personal ni ampliar estos permisos desde esta pantalla.", fontWeight = FontWeight.Bold, color = Color(0xFFFFB4A2))
+                        Spacer(Modifier.height(8.dp))
+                        Text(if (codeConsentReady) "Ya transcurrieron 30 segundos. Puedes decidir." else "Tómate un momento para revisar. La confirmación estará disponible después de 30 segundos.")
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = codeConsentReady && candidate.name.substringAfterLast(".", "").lowercase() in listOf("js", "mjs") && report.language == "JavaScript", onClick = {
+                        pendingCodeRun = null
+                        codeRunningIds = codeRunningIds + candidate.id
+                        JavaScriptRunner.run(context, candidate.source) { result ->
+                            codeRunResults = codeRunResults + (candidate.id to result)
+                            codeRunningIds = codeRunningIds - candidate.id
+                            codeRunDetails = codeRunDetails - candidate.id
+                        }
+                    }) { Text("Confirmar ejecución limitada") }
+                },
+                dismissButton = { TextButton(onClick = { pendingCodeRun = null }) { Text("Cancelar") } }
             )
         }
 
