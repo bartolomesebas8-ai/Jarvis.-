@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
 private const val PREFS = "jarvis_local_memory"
 private const val HISTORY = "chat_history"
 private const val MEMORIES = "saved_memories"
+private val MEMORY_CATEGORIES = listOf("Personal", "Proyectos", "Estudios", "Metas", "Temporal")
+data class MemoryItem(val category: String, val text: String)
 
 private fun loadHistory(context: android.content.Context): List<Line> {
     val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
@@ -70,12 +72,18 @@ private fun saveHistory(context: android.content.Context, lines: List<Line>) {
         .edit().putString(HISTORY, array.toString()).commit()
 }
 
-private fun loadMemories(context: android.content.Context): List<String> {
+private fun loadMemories(context: android.content.Context): List<MemoryItem> {
     val raw = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
         .getString(MEMORIES, null) ?: return emptyList()
     return try {
         val array = JSONArray(raw)
-        (0 until array.length()).map { array.getString(it) }
+        (0 until array.length()).map { i ->
+            val item = array.get(i)
+            if (item is JSONObject) MemoryItem(
+                item.optString("category", "Personal").let { if (it in MEMORY_CATEGORIES) it else "Personal" },
+                item.optString("text", "")
+            ) else MemoryItem("Personal", item.toString())
+        }.filter { it.text.isNotBlank() }
     } catch (_: Exception) {
         emptyList()
     }
@@ -97,11 +105,15 @@ fun Jarvis() {
     var showClearDialog by remember { mutableStateOf(false) }
     var showMemoryDialog by remember { mutableStateOf(false) }
     var memoryInput by remember { mutableStateOf("") }
+    var selectedMemoryCategory by remember { mutableStateOf("Personal") }
+    var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
 
-    fun saveMemories(items: List<String>) {
+    fun saveMemories(items: List<MemoryItem>) {
+        val array = JSONArray()
+        items.forEach { item -> array.put(JSONObject().put("category", item.category).put("text", item.text)) }
         context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
-            .edit().putString(MEMORIES, JSONArray(items).toString()).commit()
+            .edit().putString(MEMORIES, array.toString()).commit()
     }
 
     fun sendMessage() {
@@ -254,6 +266,18 @@ fun Jarvis() {
                     Column {
                         Text("Estos recuerdos se guardan solo en este teléfono. Añade únicamente información que quieras conservar.", fontSize = 13.sp)
                         Spacer(Modifier.height(10.dp))
+                        Box {
+                            OutlinedButton(onClick = { expandedMemoryCategory = true }) { Text("Sección: $selectedMemoryCategory") }
+                            DropdownMenu(expanded = expandedMemoryCategory, onDismissRequest = { expandedMemoryCategory = false }) {
+                                MEMORY_CATEGORIES.forEach { category ->
+                                    DropdownMenuItem(text = { Text(category) }, onClick = {
+                                        selectedMemoryCategory = category
+                                        expandedMemoryCategory = false
+                                    })
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
                         BasicTextField(
                             value = memoryInput,
                             onValueChange = { memoryInput = it },
@@ -265,12 +289,14 @@ fun Jarvis() {
                             }
                         )
                         Spacer(Modifier.height(10.dp))
-                        Text("Recuerdos guardados: ${memories.size}", color = cyan, fontSize = 12.sp)
-                        memories.forEachIndexed { index, item ->
+                        val visibleMemories = memories.withIndex().filter { it.value.category == selectedMemoryCategory }
+                        Text("$selectedMemoryCategory · ${visibleMemories.size} recuerdos", color = cyan, fontSize = 12.sp)
+                        if (visibleMemories.isEmpty()) Text("Todavía no hay recuerdos en esta sección.", color = Color.LightGray, fontSize = 12.sp)
+                        visibleMemories.forEach { indexed ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("• $item", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                Text("• ${indexed.value.text}", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
                                 TextButton(onClick = {
-                                    memories = memories.toMutableList().also { it.removeAt(index) }
+                                    memories = memories.toMutableList().also { it.removeAt(indexed.index) }
                                     saveMemories(memories)
                                 }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
                             }
@@ -281,7 +307,7 @@ fun Jarvis() {
                     TextButton(onClick = {
                         val value = memoryInput.trim()
                         if (value.isNotEmpty()) {
-                            memories = memories + value
+                            memories = memories + MemoryItem(selectedMemoryCategory, value)
                             saveMemories(memories)
                             memoryInput = ""
                         }
