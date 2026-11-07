@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -103,6 +105,7 @@ fun Jarvis() {
     var lines by remember { mutableStateOf(loadHistory(context)) }
     var showClearDialog by remember { mutableStateOf(false) }
     var showMemoryDialog by remember { mutableStateOf(false) }
+    var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var memoryInput by remember { mutableStateOf("") }
     var editingMemoryIndex by remember { mutableStateOf<Int?>(null) }
@@ -300,7 +303,7 @@ fun Jarvis() {
                 onDismissRequest = { showMemoryDialog = false },
                 title = { Text("Memoria de JARVIS") },
                 text = {
-                    Column {
+                    Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
                         Text("Estos recuerdos se guardan solo en este teléfono. Añade únicamente información que quieras conservar.", fontSize = 13.sp)
                         Spacer(Modifier.height(10.dp))
                         Box {
@@ -338,15 +341,7 @@ fun Jarvis() {
                                     editingMemoryIndex = indexed.index
                                 }) { Text("Editar", color = cyan, fontSize = 11.sp) }
                                 TextButton(onClick = {
-                                    memories = memories.toMutableList().also { it.removeAt(indexed.index) }
-                                    val editing = editingMemoryIndex
-                                    if (editing == indexed.index) {
-                                        editingMemoryIndex = null
-                                        memoryInput = ""
-                                    } else if (editing != null && editing > indexed.index) {
-                                        editingMemoryIndex = editing - 1
-                                    }
-                                    saveMemories(memories)
+                                    pendingDeleteMemoryIndex = indexed.index
                                 }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
                             }
                         }
@@ -380,6 +375,34 @@ fun Jarvis() {
                             showMemoryDialog = false
                         }) { Text("Cerrar") }
                     }
+                }
+            )
+        }
+
+        if (pendingDeleteMemoryIndex != null) {
+            AlertDialog(
+                onDismissRequest = { pendingDeleteMemoryIndex = null },
+                title = { Text("¿Quitar este recuerdo?") },
+                text = { Text("Este recuerdo se eliminará de la memoria local. Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val index = pendingDeleteMemoryIndex
+                        if (index != null && index in memories.indices) {
+                            memories = memories.toMutableList().also { it.removeAt(index) }
+                            val editing = editingMemoryIndex
+                            if (editing == index) {
+                                editingMemoryIndex = null
+                                memoryInput = ""
+                            } else if (editing != null && editing > index) {
+                                editingMemoryIndex = editing - 1
+                            }
+                            saveMemories(memories)
+                        }
+                        pendingDeleteMemoryIndex = null
+                    }) { Text("Quitar recuerdo", color = Color(0xFFFF9B9B)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteMemoryIndex = null }) { Text("Cancelar") }
                 }
             )
         }
