@@ -278,6 +278,7 @@ fun Jarvis() {
                 }
                 Spacer(Modifier.height(12.dp))
                 if (showSettings) {
+                    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("Organiza las opciones de JARVIS sin llenar la pantalla principal.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
                     Spacer(Modifier.height(18.dp))
@@ -410,6 +411,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(6.dp))
                             Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                         }
+                    }
                     }
                 } else {
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
