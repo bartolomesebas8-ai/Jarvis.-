@@ -1,0 +1,55 @@
+name: Construir APK de JARVIS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Extraer proyecto JARVIS
+        shell: bash
+        run: |
+          set -e
+          ZIP="$(find . -maxdepth 2 -type f -iname 'JARVIS-listo-para-subir.zip' -print -quit)"
+          if [ -z "$ZIP" ]; then
+            echo "No se encontró el ZIP"
+            exit 1
+          fi
+          mkdir -p extracted
+          unzip -o "$ZIP" -d extracted
+          PROJECT_DIR="$(find extracted -type f -name settings.gradle.kts -printf '%h\n' | head -n 1)"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "No se encontró settings.gradle.kts"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Construir APK
+        run: gradle -p "$PROJECT_DIR" assembleDebug
+
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-debug
+          path: extracted/**/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
