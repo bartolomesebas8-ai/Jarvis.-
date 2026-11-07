@@ -525,10 +525,10 @@ fun Jarvis() {
                             }
                         }
                         if (showSettings) {
-                            TextButton(onClick = { showSettings = false }) { Text("Volver", color = cyan) }
+                            TextButton(onClick = { showSettings = false }) { Text("Volver al chat", color = cyan) }
                         } else {
                             TextButton(onClick = { showSettings = true }) { Text("⚙", color = cyan, fontSize = 24.sp) }
-                            TextButton(onClick = { showClearDialog = true }) { Text("Borrar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
+                            TextButton(onClick = { showClearDialog = true }) { Text("Limpiar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
                         }
                     }
                 }
@@ -536,7 +536,14 @@ fun Jarvis() {
                 if (showSettings) {
                     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Text("Opciones agrupadas por tema para encontrarlas más fácilmente.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                    Text("Todo en su lugar: herramientas, memoria, productividad y protección.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text("ÍNDICE DE CONFIGURACIÓN", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text("1. Laboratorio y proyectos  ·  2. Memoria y conocimiento  ·  3. Personalización y herramientas  ·  4. Productividad  ·  5. Seguridad e IA", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                        }
+                    }
                     Spacer(Modifier.height(14.dp))
                     Text("LABORATORIO Y PROYECTOS", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                     Text("Código, proyectos y herramientas de desarrollo", color = Color(0xFF8FAABD), fontSize = 11.sp)
@@ -714,8 +721,8 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(18.dp))
-                    Text("PERSONALIZACIÓN Y SEGURIDAD", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                    Text("Funciones adicionales y protección de JARVIS", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                    Text("PERSONALIZACIÓN Y HERRAMIENTAS", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("Extensiones y opciones complementarias", color = Color(0xFF8FAABD), fontSize = 11.sp)
                     Spacer(Modifier.height(8.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
@@ -765,6 +772,9 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
+                            Text("PRODUCTIVIDAD Y PLANIFICACIÓN", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                            Text("Tareas, agenda, rutinas y objetivos en un solo lugar.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                            Spacer(Modifier.height(6.dp))
                             Text("GESTOR DE TAREAS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Organiza pendientes, prioridades y fechas. Los avisos se programan en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
@@ -868,7 +878,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             }
                         }
                     }
-                    Text("SEGURIDAD", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text("SEGURIDAD Y ESTADO DEL ASISTENTE", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                             Spacer(Modifier.height(6.dp))
                             Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(10.dp))
@@ -888,70 +898,9 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
                     }
                     Spacer(Modifier.height(12.dp))
-                    val today = java.time.LocalDate.now()
-                    val focusTask = tasks.filter { !it.completed && taskLocalDate(it.dueDate)?.let { d -> !d.isAfter(today) } == true }
-                        .sortedWith(compareBy<JarvisTask> { if (taskLocalDate(it.dueDate)?.isBefore(today) == true) 0 else 1 }
-                        .thenBy { when (it.priority) { "Alta" -> 0; "Media" -> 1; else -> 2 } }).firstOrNull()
-                    val doneRoutines = routines.count { routineDateKey() in it.completedDates }
-                    Surface(color = Color(0xFF102B40), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text("CENTRO DE MANDO · MI DÍA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
-                            Text(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM", Locale("es", "PE"))).replaceFirstChar { it.uppercase() }, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(10.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf("Pendientes" to tasks.count { !it.completed }, "Vencidas" to tasks.count { !it.completed && taskLocalDate(it.dueDate)?.isBefore(today) == true }, "Metas" to goals.count { it.progress < 100f }, "Hábitos" to doneRoutines).forEach { metric ->
-                                    Surface(color = Color(0xFF183B52), shape = RoundedCornerShape(9.dp), modifier = Modifier.weight(1f)) {
-                                        Column(Modifier.padding(7.dp)) { Text(metric.second.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(metric.first, color = Color(0xFFB8C9D8), fontSize = 9.sp) }
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            Text("SIGUIENTE ACCIÓN RECOMENDADA", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            Text(focusTask?.title ?: "No hay tareas vencidas ni para hoy.", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            if (focusTask != null) {
-                                Text((if (taskLocalDate(focusTask.dueDate)?.isBefore(today) == true) "Atrasada" else "Para hoy") + " · Prioridad " + focusTask.priority, color = Color(0xFFFFD18A), fontSize = 10.sp)
-                                TextButton(onClick = { tasks = tasks.map { if (it.id == focusTask.id) it.copy(completed = true) else it }; saveTasks(context, tasks); cancelJarvisReminder(context, focusTask.id) }) { Text("✓ Marcar como completada", color = cyan) }
-                            }
-                            Text("PLAN DE LOS PRÓXIMOS 7 DÍAS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            val weekDays = (0..6).map { today.plusDays(it.toLong()) }
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                weekDays.forEach { day ->
-                                    val count = tasks.count { !it.completed && taskLocalDate(it.dueDate) == day }
-                                    Surface(color = if (day == today) Color(0xFF24516A) else Color(0xFF183B52), shape = RoundedCornerShape(8.dp), modifier = Modifier.weight(1f)) {
-                                        Column(Modifier.padding(vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(day.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale("es", "PE")).take(2), color = Color(0xFFB8C9D8), fontSize = 9.sp)
-                                            Text(day.dayOfMonth.toString(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                            Text(count.toString(), color = cyan, fontSize = 10.sp)
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("MODO CONCENTRACIÓN · 25 MIN", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Text(String.format(Locale.ROOT, "%02d:%02d", focusSeconds / 60, focusSeconds % 60), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                                            Text("$focusSessions sesión(es) completada(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp)
-                                        }
-                                        Text(if (focusRunning) "EN CURSO" else if (focusSeconds == 0) "¡LISTO!" else "PAUSADO", color = if (focusRunning) Color(0xFF8FE4C0) else cyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Button(onClick = { if (focusSeconds == 0) focusSeconds = 25 * 60; focusRunning = !focusRunning }, modifier = Modifier.weight(1f)) { Text(if (focusRunning) "Pausar" else if (focusSeconds == 0) "Otra sesión" else "Iniciar") }
-                                        OutlinedButton(onClick = { focusRunning = false; focusSeconds = 25 * 60 }, modifier = Modifier.weight(1f)) { Text("Reiniciar") }
-                                    }
-                                    Text("El contador funciona mientras JARVIS permanece abierto; no es una alarma en segundo plano.", color = Color(0xFF8FAABD), fontSize = 9.sp)
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.weight(1f)) { Text("+ Tarea rápida") }
-                                OutlinedButton(onClick = { goalTitle = ""; goalCategory = "Personal"; showGoalDialog = true }, modifier = Modifier.weight(1f)) { Text("+ Nueva meta") }
-                            }
-                            Text("Datos locales · sugerencias orientativas, no decisiones automáticas.", color = Color(0xFF8FAABD), fontSize = 9.sp)
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
+                    Text("CONVERSACIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                    Text("Escribe tu mensaje abajo para comenzar o continuar hablando con JARVIS.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
+                    Spacer(Modifier.height(8.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
                         LazyColumn(
                             state = listState,
