@@ -1,0 +1,4 @@
+.inspection/JARVIS-0.3/AndroidManifest.xml
+.inspection/JARVIS-0.3/archivos.txt
+.inspection/JARVIS-0.3/java/com/jarvis/assistant/AiEngine.kt
+.inspection/JARVIS-0.3/java/com/jarvis/assistant/MainActivity.kt
