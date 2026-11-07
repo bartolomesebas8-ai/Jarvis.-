@@ -248,7 +248,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  0.6", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  0.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -278,8 +278,7 @@ fun Jarvis() {
                 }
                 Spacer(Modifier.height(12.dp))
                 if (showSettings) {
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                     Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("Organiza las opciones de JARVIS sin llenar la pantalla principal.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
                     Spacer(Modifier.height(18.dp))
@@ -414,7 +413,6 @@ fun Jarvis() {
                         }
                     }
                     }
-                    }
                 } else {
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
@@ -487,7 +485,7 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 0.6 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 0.7 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
