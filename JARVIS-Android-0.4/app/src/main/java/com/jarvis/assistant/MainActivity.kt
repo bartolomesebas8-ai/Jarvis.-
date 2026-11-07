@@ -537,17 +537,52 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Crea espacios separados para cada fragmento o proyecto. Puedes pegarlos o importar archivos; cada espacio se analiza por separado. En esta versión, el laboratorio todavía no ejecuta programas: reconoce y analiza texto de código, pero no compila ni corre Python, Java, Kotlin, JavaScript u otros lenguajes.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
-                            OutlinedTextField(value = codeWorkspaceName, onValueChange = { codeWorkspaceName = it.take(60) }, modifier = Modifier.fillMaxWidth(), label = { Text("Nombre del espacio") }, singleLine = true)
-                            OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código (máximo 200 000 caracteres)") }, minLines = 4, maxLines = 8)
-                            Button(onClick = { try { require(codeWorkspaceName.isNotBlank()) { "Escribe un nombre para el espacio." }; require(codeWorkspaceSource.isNotBlank()) { "Pega código antes de guardar." }; val existing = codeWorkspaces.firstOrNull { it.name.equals(codeWorkspaceName.trim(), true) }; val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), codeWorkspaceName.trim(), codeWorkspaceSource); codeWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceName = ""; codeWorkspaceSource = ""; codeGuardStatus = "Espacio guardado por separado." } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el espacio." } }, enabled = codeWorkspaceName.isNotBlank() && codeWorkspaceSource.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar espacio de código") }
+                            Text("Aquí es donde pegas el código. No necesitas escribir un título: JARVIS asignará un nombre automáticamente. Para empezar, carga la prueba de diagnóstico o pega tu propio JavaScript y pulsa Guardar y ejecutar.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text("1. CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código") }, placeholder = { Text("El código aparecerá aquí…") }, minLines = 7, maxLines = 12)
+                            OutlinedButton(onClick = {
+                                codeWorkspaceSource = """
+(() => {
+  const checks = [];
+  const test = (name, fn) => { try { checks.push({name, ok: !!fn()}); } catch (e) { checks.push({name, ok:false, error:e.message}); } };
+  test("Matemáticas", () => 10 + 5 === 15);
+  test("Variables", () => { let n = 20; return n === 20; });
+  test("Funciones", () => ((a,b) => a+b)(7,8) === 15);
+  test("Arreglos", () => [1,2,3].length === 3);
+  test("Objetos", () => ({name:"JARVIS"}).name === "JARVIS");
+  test("JSON", () => JSON.parse(JSON.stringify({active:true})).active === true);
+  test("Condiciones", () => 10 > 5 && 5 < 20);
+  test("Manejo de errores", () => { try { throw new Error("prueba"); } catch(e) { return e.message === "prueba"; } });
+  const passed = checks.filter(x => x.ok).length;
+  checks.forEach(x => console.log((x.ok ? "CORRECTO — " : "FALLO — ") + x.name + (x.error ? ": " + x.error : "")));
+  console.log("DIAGNÓSTICO JAVASCRIPT: " + passed + "/" + checks.length);
+  console.log(passed === checks.length ? "PRUEBAS SUPERADAS" : "SE DETECTARON FALLOS");
+  return "Diagnóstico terminado";
+})();
+""".trimIndent()
+                                codeGuardStatus = "Prueba de diagnóstico cargada. Pulsa Guardar y ejecutar."
+                            }, modifier = Modifier.fillMaxWidth()) { Text("Cargar prueba de diagnóstico") }
+                            Button(onClick = {
+                                try {
+                                    require(codeWorkspaceSource.isNotBlank()) { "Pega código o carga la prueba de diagnóstico." }
+                                    val baseName = "Código " + (codeWorkspaces.size + 1)
+                                    val existing = codeWorkspaces.firstOrNull { it.name == baseName }
+                                    val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), baseName, codeWorkspaceSource)
+                                    codeWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }
+                                    CodeWorkspaces.save(context, codeWorkspaces)
+                                    codeWorkspaceSource = ""
+                                    codeGuardStatus = "Guardado. Busca " + baseName + " abajo y pulsa Ejecutar."
+                                } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el código." }
+                            }, enabled = codeWorkspaceSource.isNotBlank() && codeWorkspaces.size < 20, modifier = Modifier.fillMaxWidth()) { Text("Guardar código") }
+                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("O importar un archivo") }
                             Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo como espacio separado") }
                             if (codeGuardStatus.isNotBlank()) Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
                             Text("Espacios guardados: " + codeWorkspaces.size + " / 20", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
                                 Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("JavaScript disponible · otros motores aún no integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Text("JavaScript: ejecución limitada disponible · otros motores aún no integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
                                 Text("Cada ejecución requiere revisión y confirmación. La prueba está limitada: sin acceso a datos personales, archivos del teléfono, red ni procesos del sistema.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                             } }
                             codeWorkspaces.forEach { workspace ->
