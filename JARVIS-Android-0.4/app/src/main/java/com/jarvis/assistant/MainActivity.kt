@@ -797,6 +797,34 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
                     }
                     Spacer(Modifier.height(12.dp))
+                    val today = java.time.LocalDate.now()
+                    val focusTask = tasks.filter { !it.completed && taskLocalDate(it.dueDate)?.let { d -> !d.isAfter(today) } == true }
+                        .sortedWith(compareBy<JarvisTask> { if (taskLocalDate(it.dueDate)?.isBefore(today) == true) 0 else 1 }
+                        .thenBy { when (it.priority) { "Alta" -> 0; "Media" -> 1; else -> 2 } }).firstOrNull()
+                    val doneRoutines = routines.count { routineDateKey() in it.completedDates }
+                    Surface(color = Color(0xFF102B40), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text("CENTRO DE MANDO · MI DÍA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                            Text(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM", Locale("es", "PE"))).replaceFirstChar { it.uppercase() }, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("Pendientes" to tasks.count { !it.completed }, "Vencidas" to tasks.count { !it.completed && taskLocalDate(it.dueDate)?.isBefore(today) == true }, "Metas" to goals.count { it.progress < 100f }, "Hábitos" to doneRoutines).forEach { metric ->
+                                    Surface(color = Color(0xFF183B52), shape = RoundedCornerShape(9.dp), modifier = Modifier.weight(1f)) {
+                                        Column(Modifier.padding(7.dp)) { Text(metric.second.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text(metric.first, color = Color(0xFFB8C9D8), fontSize = 9.sp) }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Text("SIGUIENTE ACCIÓN RECOMENDADA", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(focusTask?.title ?: "No hay tareas vencidas ni para hoy.", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            if (focusTask != null) {
+                                Text((if (taskLocalDate(focusTask.dueDate)?.isBefore(today) == true) "Atrasada" else "Para hoy") + " · Prioridad " + focusTask.priority, color = Color(0xFFFFD18A), fontSize = 10.sp)
+                                TextButton(onClick = { tasks = tasks.map { if (it.id == focusTask.id) it.copy(completed = true) else it }; saveTasks(context, tasks); cancelJarvisReminder(context, focusTask.id) }) { Text("✓ Marcar como completada", color = cyan) }
+                            }
+                            Text("Datos locales · sugerencia orientativa, no decisión automática.", color = Color(0xFF8FAABD), fontSize = 9.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
                         LazyColumn(
                             state = listState,
