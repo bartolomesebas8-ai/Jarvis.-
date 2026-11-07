@@ -27,9 +27,14 @@ jobs:
           cp -R "$MAIN/java" .inspection/JARVIS-0.3/
           if [ -d "$MAIN/res" ]; then cp -R "$MAIN/res" .inspection/JARVIS-0.3/; fi
           if [ -f "$MAIN/AndroidManifest.xml" ]; then cp "$MAIN/AndroidManifest.xml" .inspection/JARVIS-0.3/; fi
+          if [ -f "$PROJECT/app/build.gradle.kts" ]; then cp "$PROJECT/app/build.gradle.kts" .inspection/JARVIS-0.3/app-build.gradle.kts; fi
+          if [ -f "$PROJECT/settings.gradle.kts" ]; then cp "$PROJECT/settings.gradle.kts" .inspection/JARVIS-0.3/settings.gradle.kts; fi
+          unzip -Z1 "$ZIP" > .inspection/JARVIS-0.3/contenido-completo-del-zip.txt
           find .inspection/JARVIS-0.3 -type f | sort > .inspection/JARVIS-0.3/archivos.txt
-          echo "Archivos de código y recursos preparados:"
+          echo "Archivos inspeccionados:"
           cat .inspection/JARVIS-0.3/archivos.txt
+          echo "Rutas originales del ZIP:"
+          cat .inspection/JARVIS-0.3/contenido-completo-del-zip.txt
 
       - name: Guardar informe en GitHub para revisión
         shell: bash
@@ -41,6 +46,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "El informe ya estaba actualizado."
           else
-            git commit -m "Guardar informe de inspección JARVIS 0.3"
+            git commit -m "Ampliar inspección de JARVIS 0.3"
             git push
           fi
