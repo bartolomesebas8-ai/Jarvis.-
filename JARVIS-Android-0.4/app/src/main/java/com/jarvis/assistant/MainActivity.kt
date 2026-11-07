@@ -187,10 +187,32 @@ fun Jarvis() {
     fun sendMessage() {
         val msg = input.trim()
         if (msg.isNotEmpty()) {
-            val updated = lines + Line("TÚ", msg) + Line(
-                "JARVIS",
+            val lower = msg.lowercase(Locale.ROOT)
+            val searchIntent = lower.startsWith("busca en mi biblioteca") ||
+                lower.startsWith("buscar en mi biblioteca") ||
+                lower.startsWith("busca en biblioteca") ||
+                lower.startsWith("buscar en biblioteca") ||
+                lower.startsWith("consulta mi biblioteca") ||
+                lower.startsWith("encuentra en mi biblioteca")
+            val reply = if (searchIntent) {
+                val query = msg.substringAfter("biblioteca", "").trim()
+                    .removePrefix("de ").removePrefix("sobre ").removePrefix("acerca de ").trim()
+                if (query.isBlank()) {
+                    "Dime qué palabra, función o tema quieres buscar en los documentos importados."
+                } else {
+                    val matches = KnowledgeLibrary.search(context, query, 5)
+                    if (matches.isEmpty()) {
+                        "No encontré coincidencias en tu biblioteca para: «" + query + "». Importa los documentos correspondientes o prueba con otras palabras."
+                    } else {
+                        "Encontré " + matches.size + " resultado(s) en tu biblioteca:\\n\\n" +
+                            matches.joinToString("\\n\\n") { match -> "📄 " + match.document.name + "\\n" + match.excerpt } +
+                            "\\n\\nBúsqueda local: no se ejecutó ningún archivo."
+                    }
+                }
+            } else {
                 "Recibí tu mensaje y lo guardé en este dispositivo. La conexión con Groq y el motor Qwen todavía está pendiente."
-            )
+            }
+            val updated = lines + Line("TÚ", msg) + Line("JARVIS", reply)
             lines = updated
             saveHistory(context, updated)
             input = ""
