@@ -20,7 +20,7 @@ data class KnowledgeMatch(
 object KnowledgeLibrary {
     private const val MAX_FILE_BYTES = 512 * 1024
     private const val MAX_TOTAL_BYTES = 5L * 1024 * 1024
-    private val allowedExtensions = setOf("txt", "md", "json", "xml", "kt", "java", "py", "js", "html", "css", "gradle", "kts", "csv")
+    private val allowedExtensions = setOf("txt", "md", "json", "xml", "csv")
 
     private fun directory(context: Context): File =
         File(context.filesDir, "jarvis_knowledge").apply { mkdirs() }
@@ -28,7 +28,7 @@ object KnowledgeLibrary {
     fun import(context: Context, displayName: String, input: InputStream): KnowledgeDocument {
         val safeName = displayName.substringAfterLast('/').substringAfterLast('\\').take(100)
         val extension = safeName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        require(extension in allowedExtensions) { "Tipo de archivo no admitido. Usa TXT, MD, JSON, XML o archivos de código compatibles." }
+        require(extension in allowedExtensions) { "Tipo de archivo no admitido en Biblioteca. Usa TXT, MD, JSON, XML o CSV. Para código, utiliza Code Guard." }
 
         val bytes = input.use { stream ->
             val output = java.io.ByteArrayOutputStream()
