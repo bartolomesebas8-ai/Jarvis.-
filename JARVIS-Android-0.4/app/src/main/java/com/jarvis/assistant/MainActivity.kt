@@ -30,8 +30,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-data class Line(val who: String, val text: String)
+data class Line(val who: String, val text: String, val timestamp: Long = System.currentTimeMillis())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +55,7 @@ private fun loadHistory(context: android.content.Context): List<Line> {
         val array = JSONArray(raw)
         (0 until array.length()).map { i ->
             val item = array.getJSONObject(i)
-            Line(item.getString("who"), item.getString("text"))
+            Line(item.getString("who"), item.getString("text"), item.optLong("timestamp", System.currentTimeMillis()))
         }.ifEmpty { listOf(Line("JARVIS", "Hola. Soy JARVIS. Tu historial se guarda en este dispositivo.")) }
     } catch (_: Exception) {
         listOf(Line("JARVIS", "No pude leer el historial anterior; empezamos uno nuevo."))
@@ -61,7 +64,7 @@ private fun loadHistory(context: android.content.Context): List<Line> {
 
 private fun saveHistory(context: android.content.Context, lines: List<Line>) {
     val array = JSONArray()
-    lines.forEach { line -> array.put(JSONObject().put("who", line.who).put("text", line.text)) }
+    lines.forEach { line -> array.put(JSONObject().put("who", line.who).put("text", line.text).put("timestamp", line.timestamp)) }
     context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
         .edit().putString(HISTORY, array.toString()).commit()
 }
@@ -73,8 +76,7 @@ fun Jarvis() {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
-    val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
+        val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
     val panel = Color(0xFF142238)
     val cyan = Color(0xFF54D6E8)
@@ -160,12 +162,40 @@ fun Jarvis() {
                     ) {
                         items(lines) { line ->
                             Column(Modifier.fillMaxWidth(), horizontalAlignment = if (line.who == "TÚ") Alignment.End else Alignment.Start) {
-                                Text(line.who, color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (line.who != "TÚ") {
+                                        Surface(shape = CircleShape, color = Color(0xFF1B4658), modifier = Modifier.size(23.dp)) {
+                                            Box(contentAlignment = Alignment.Center) { Text("J", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                        }
+                                        Spacer(Modifier.width(6.dp))
+                                    }
+                                    Text(if (line.who == "TÚ") "Tú" else "JARVIS", color = if (line.who == "TÚ") Color(0xFF9CCBEA) else cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    if (line.who == "TÚ") {
+                                        Spacer(Modifier.width(6.dp))
+                                        Surface(shape = CircleShape, color = Color(0xFF24465C), modifier = Modifier.size(23.dp)) {
+                                            Box(contentAlignment = Alignment.Center) { Text("T", color = Color(0xFFB9E4FF), fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
                                 Surface(
-                                    color = if (line.who == "TÚ") Color(0xFF21465A) else Color(0xFF203047),
-                                    shape = RoundedCornerShape(14.dp)
+                                    color = if (line.who == "TÚ") Color(0xFF17445A) else Color(0xFF1A2D43),
+                                    shape = RoundedCornerShape(
+                                        topStart = 15.dp, topEnd = 15.dp,
+                                        bottomEnd = if (line.who == "TÚ") 5.dp else 15.dp,
+                                        bottomStart = if (line.who == "TÚ") 15.dp else 5.dp
+                                    )
                                 ) {
-                                    Text(line.text, Modifier.padding(12.dp), color = Color.White)
+                                    Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                                        Text(line.text, color = Color.White, fontSize = 14.sp)
+                                        Spacer(Modifier.height(5.dp))
+                                        Text(
+                                            SimpleDateFormat("HH:mm", Locale("es", "PE")).format(Date(line.timestamp)),
+                                            color = Color(0xFF91AFC1),
+                                            fontSize = 9.sp,
+                                            modifier = Modifier.align(Alignment.End)
+                                        )
+                                    }
                                 }
                             }
                         }
