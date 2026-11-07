@@ -105,6 +105,7 @@ fun Jarvis() {
     var showMemoryDialog by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var memoryInput by remember { mutableStateOf("") }
+    var editingMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
     var expandedMemoryCategory by remember { mutableStateOf(false) }
     var memories by remember { mutableStateOf(loadMemories(context)) }
@@ -323,6 +324,10 @@ fun Jarvis() {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("• ${indexed.value.text}", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
                                 TextButton(onClick = {
+                                    memoryInput = indexed.value.text
+                                    editingMemoryIndex = indexed.index
+                                }) { Text("Editar", color = cyan, fontSize = 11.sp) }
+                                TextButton(onClick = {
                                     memories = memories.toMutableList().also { it.removeAt(indexed.index) }
                                     saveMemories(memories)
                                 }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
@@ -334,11 +339,15 @@ fun Jarvis() {
                     TextButton(onClick = {
                         val value = memoryInput.trim()
                         if (value.isNotEmpty()) {
-                            memories = memories + MemoryItem(selectedMemoryCategory, value)
+                            val editing = editingMemoryIndex
+                            memories = if (editing != null && editing in memories.indices) {
+                                memories.toMutableList().also { it[editing] = MemoryItem(selectedMemoryCategory, value) }
+                            } else memories + MemoryItem(selectedMemoryCategory, value)
                             saveMemories(memories)
                             memoryInput = ""
+                            editingMemoryIndex = null
                         }
-                    }) { Text("Guardar recuerdo") }
+                    }) { Text(if (editingMemoryIndex == null) "Guardar recuerdo" else "Guardar cambios") }
                 },
                 dismissButton = {
                     TextButton(onClick = { showMemoryDialog = false }) { Text("Cerrar") }
