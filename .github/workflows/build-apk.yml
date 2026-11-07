@@ -3,7 +3,7 @@ name: Construir APK de JARVIS
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
@@ -26,17 +27,25 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extraer proyecto JARVIS
+      - name: Extraer proyecto actualizado
         shell: bash
         run: |
           set -e
-          ZIP="$(find . -maxdepth 2 -type f -iname 'JARVIS-listo-para-subir.zip' -print -quit)"
-          mkdir -p extracted
+          ZIP="$(find . -maxdepth 2 -type f -name 'JARVIS-listo-para-subir (1).zip' -print -quit)"
+          if [ -z "$ZIP" ]; then
+            ZIP="$(find . -maxdepth 2 -type f -name 'JARVIS-listo-para-subir.zip' -print -quit)"
+          fi
+          if [ -z "$ZIP" ]; then
+            echo "No se encontró el ZIP de JARVIS"
+            exit 1
+          fi
+          echo "Usando: $ZIP"
+          mkdir extracted
           unzip -o "$ZIP" -d extracted
           PROJECT_DIR="$(find extracted -type f -name settings.gradle.kts -printf '%h\n' | head -n 1)"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Corregir versiones Java y Kotlin
+      - name: Configurar Java y Kotlin
         shell: bash
         run: |
           python3 - "$PROJECT_DIR/app/build.gradle.kts" <<'PY'
@@ -64,3 +73,4 @@ jobs:
           name: JARVIS-debug
           path: extracted/**/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          
