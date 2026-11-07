@@ -1205,35 +1205,43 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
         if (pendingCodeRun != null) {
             val candidate = pendingCodeRun!!
             val report = remember(candidate.id, candidate.source) { CodeGuardAnalyzer.analyze(candidate.name, candidate.source) }
+            val asksForPhoneData = Regex("(?i)(READ_CONTACTS|WRITE_CONTACTS|READ_SMS|RECEIVE_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_PHONE_STATE|READ_MEDIA_|CAMERA|RECORD_AUDIO|ContactsContract|Telephony\\.Sms|MediaStore|ContentResolver|navigator\\.geolocation|getUserMedia|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(candidate.source)
+            val canRunJavaScript = report.language.startsWith("JavaScript")
             AlertDialog(
                 onDismissRequest = { pendingCodeRun = null },
-                title = { Text("Revisión antes de ejecutar") },
+                title = { Text(if (asksForPhoneData) "Revisión de permisos y datos" else "Confirmar ejecución") },
                 text = {
                     Column {
-                        Text("JARVIS revisó el código de forma estática. Esta revisión es heurística y no garantiza detectar todo.")
-                        Spacer(Modifier.height(8.dp))
-                        Text("Archivo: ${candidate.name}", fontWeight = FontWeight.Bold)
-                        Text("Señales encontradas: ${report.findings.size}")
-                        report.findings.take(6).forEach { finding -> Text("• ${finding.title}: ${finding.explanation}", fontSize = 12.sp) }
-                        if (report.findings.size > 6) Text("Y ${report.findings.size - 6} señales más.")
-                        Spacer(Modifier.height(8.dp))
-                        Text("Permisos concedidos: ninguno. La ejecución de JavaScript permanece aislada y no recibe acceso a datos personales, archivos, red, cuentas, sensores ni procesos del sistema.")
-                        Text("No se puede habilitar acceso a información personal ni ampliar estos permisos desde esta pantalla.", fontWeight = FontWeight.Bold, color = Color(0xFFFFB4A2))
-                        Spacer(Modifier.height(8.dp))
-                        val asksForPhoneData = Regex("(?i)(READ_CONTACTS|READ_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|CAMERA|RECORD_AUDIO|READ_MEDIA_|contacts|sms|calllog|geolocation|navigator\\.camera|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(candidate.source)
-                        if (asksForPhoneData) Text(if (codeConsentReady) "Ya transcurrieron 30 segundos. Revisa y decide." else "Este código parece solicitar datos o permisos del teléfono. Revisa la explicación; podrás confirmar después de 30 segundos.")
+                        if (asksForPhoneData) {
+                            Text("El código contiene señales de que podría intentar acceder a datos o funciones del teléfono. La detección es automática y puede equivocarse.")
+                            Spacer(Modifier.height(8.dp))
+                            Text("Archivo: ${candidate.name}", fontWeight = FontWeight.Bold)
+                            report.findings.take(6).forEach { finding -> Text("• ${finding.title}: ${finding.explanation}", fontSize = 12.sp) }
+                            Text("La ejecución disponible no concede permisos ni acceso a datos personales, archivos, red, cuentas, sensores o procesos del sistema.")
+                            Spacer(Modifier.height(8.dp))
+                            Text(if (codeConsentReady) "Terminó la espera de 30 segundos. Ya puedes decidir." else "Revisa la explicación. El botón de confirmación se habilitará al terminar los 30 segundos.")
+                        } else {
+                            Text("¿Quieres ejecutar este código? No se detectaron señales conocidas de solicitudes de datos personales o permisos del teléfono. El análisis es heurístico y no garantiza que el código sea seguro.")
+                        }
+                        if (!canRunJavaScript) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Este código no se reconoce como JavaScript compatible, por lo que JARVIS no puede ejecutarlo todavía.")
+                        }
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = codeConsentReady && report.language.startsWith("JavaScript"), onClick = {
-                        pendingCodeRun = null
-                        codeRunningIds = codeRunningIds + candidate.id
-                        JavaScriptRunner.run(context, candidate.source) { result ->
-                            codeRunResults = codeRunResults + (candidate.id to result)
-                            codeRunningIds = codeRunningIds - candidate.id
-                            codeRunDetails = codeRunDetails - candidate.id
+                    TextButton(
+                        enabled = codeConsentReady && canRunJavaScript,
+                        onClick = {
+                            pendingCodeRun = null
+                            codeRunningIds = codeRunningIds + candidate.id
+                            JavaScriptRunner.run(context, candidate.source) { result ->
+                                codeRunResults = codeRunResults + (candidate.id to result)
+                                codeRunningIds = codeRunningIds - candidate.id
+                                codeRunDetails = codeRunDetails - candidate.id
+                            }
                         }
-                    }) { Text("Confirmar ejecución limitada") }
+                    ) { Text("Confirmar") }
                 },
                 dismissButton = { TextButton(onClick = { pendingCodeRun = null }) { Text("Cancelar") } }
             )
