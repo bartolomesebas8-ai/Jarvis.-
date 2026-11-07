@@ -550,8 +550,8 @@ fun Jarvis() {
                             Spacer(Modifier.height(6.dp))
                             Text("Importa apuntes y archivos de texto o código. JARVIS los guarda dentro de esta aplicación y permite buscar palabras en ellos sin Internet. Los archivos se analizan como texto: nunca se ejecutan.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
-                            Text("Formatos: TXT, MD, JSON, XML, KT, JAVA, PY, JS, HTML, CSS, GRADLE, KTS y CSV. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                            Button(onClick = { knowledgePicker.launch(arrayOf("text/*", "application/json", "application/xml", "application/octet-stream")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento o código") }
+                            Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                            Button(onClick = { knowledgePicker.launch(arrayOf("text/plain", "text/markdown", "text/csv", "application/json", "application/xml")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento") }
                             if (knowledgeStatus.isNotBlank()) {
                                 Spacer(Modifier.height(6.dp))
                                 Text(knowledgeStatus, color = Color(0xFFFFD28A), fontSize = 11.sp)
