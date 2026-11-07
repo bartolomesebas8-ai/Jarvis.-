@@ -312,7 +312,11 @@ fun Jarvis() {
         }
     }
     var reminderPermissionGranted by remember { mutableStateOf(android.os.Build.VERSION.SDK_INT < 33 || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) }
-    val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> reminderPermissionGranted = granted }
+    var showNotificationPermissionInfo by remember { mutableStateOf(false) }
+    val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        reminderPermissionGranted = granted
+        if (!granted) codeGuardStatus = "Notificaciones no autorizadas. JARVIS seguirá funcionando; los recordatorios no mostrarán avisos."
+    }
 
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -745,7 +749,7 @@ if (plannedTasks.isEmpty()) Text("No hay tareas para este periodo. Las tareas si
 Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
 
                             Text(if (reminderPermissionGranted) "Notificaciones activadas" else "Activa las notificaciones para recibir recordatorios.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                            if (!reminderPermissionGranted && android.os.Build.VERSION.SDK_INT >= 33) { TextButton(onClick = { reminderPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }) { Text("Permitir notificaciones") } }
+                            if (!reminderPermissionGranted && android.os.Build.VERSION.SDK_INT >= 33) { TextButton(onClick = { showNotificationPermissionInfo = true }) { Text("Configurar notificaciones") } }
                             Button(onClick = { taskTitle = ""; taskDueDate = ""; taskPriority = "Media"; showTaskDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva tarea") }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Mostrar completadas", color = Color(0xFFB8C9D8), fontSize = 12.sp, modifier = Modifier.weight(1f))
@@ -972,7 +976,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 2.1 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 2.3 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
@@ -1136,6 +1140,22 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         }) { Text("Cerrar") }
                     }
                 }
+            )
+        }
+
+
+        if (showNotificationPermissionInfo) {
+            AlertDialog(
+                onDismissRequest = { showNotificationPermissionInfo = false },
+                title = { Text("Permiso de notificaciones") },
+                text = { Text("Android mostrará su propio aviso para permitir que JARVIS envíe notificaciones de recordatorios. Este permiso solo permite mostrar avisos; no da acceso a contactos, mensajes, archivos, cuentas, cámara ni micrófono. Puedes rechazarlo y seguir usando JARVIS, pero no recibirás notificaciones.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showNotificationPermissionInfo = false
+                        if (android.os.Build.VERSION.SDK_INT >= 33) reminderPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }) { Text("Continuar con Android") }
+                },
+                dismissButton = { TextButton(onClick = { showNotificationPermissionInfo = false }) { Text("Ahora no") } }
             )
         }
 
