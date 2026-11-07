@@ -593,17 +593,33 @@ fun Jarvis() {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Configuración", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                            Text("Abre una carpeta para ver sus herramientas.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            Text(if (expandedSettingsFolder.isBlank()) "Selecciona una sección." else "Sección abierta", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                         }
-                        TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan) }
+                        TextButton(onClick = { if (expandedSettingsFolder.isNotBlank()) expandedSettingsFolder = "" else showSettings = false }) {
+                            Text(if (expandedSettingsFolder.isNotBlank()) "‹ Carpetas" else "‹ Chat", color = cyan)
+                        }
                     }
-                    Text("Todo en su lugar: herramientas, memoria, productividad y protección.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Text("Toca una carpeta para desplegar su contenido. Solo una carpeta permanece abierta a la vez.", color = Color(0xFFB8C9D8), fontSize = 11.sp, modifier = Modifier.padding(12.dp))
+                    if (expandedSettingsFolder.isBlank()) {
+                        Text("Todo en su lugar: herramientas, memoria, productividad y protección.", color = Color(0xFF9CB4C7), fontSize = 13.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Text("Toca una carpeta para entrar y ver su contenido en una pantalla propia.", color = Color(0xFFB8C9D8), fontSize = 11.sp, modifier = Modifier.padding(12.dp))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                    } else {
+                        Text(
+                            when (expandedSettingsFolder) {
+                                "lab" -> "LABORATORIO Y PROYECTOS"
+                                "memory" -> "MEMORIA Y CONOCIMIENTO"
+                                "tools" -> "PERSONALIZACIÓN Y HERRAMIENTAS"
+                                "productivity" -> "PRODUCTIVIDAD Y PLANIFICACIÓN"
+                                else -> "SEGURIDAD Y ESTADO DEL ASISTENTE"
+                            },
+                            color = cyan, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(12.dp))
                     }
-                    Spacer(Modifier.height(14.dp))
-                    SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
                     Spacer(Modifier.height(9.dp))
                     if (expandedSettingsFolder == "lab") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -697,7 +713,7 @@ fun Jarvis() {
                     }
                     }
                     Spacer(Modifier.height(18.dp))
-                    SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local", expandedSettingsFolder == "memory", { expandedSettingsFolder = if (expandedSettingsFolder == "memory") "" else "memory" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local", expandedSettingsFolder == "memory", { expandedSettingsFolder = if (expandedSettingsFolder == "memory") "" else "memory" })
                     Spacer(Modifier.height(9.dp))
                     if (expandedSettingsFolder == "memory") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -781,7 +797,7 @@ fun Jarvis() {
                     }
                     }
                     Spacer(Modifier.height(18.dp))
-                    SettingsGroupHeader("✧", "PERSONALIZACIÓN Y HERRAMIENTAS", "Extensiones y funciones complementarias", expandedSettingsFolder == "tools", { expandedSettingsFolder = if (expandedSettingsFolder == "tools") "" else "tools" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("✧", "PERSONALIZACIÓN Y HERRAMIENTAS", "Extensiones y funciones complementarias", expandedSettingsFolder == "tools", { expandedSettingsFolder = if (expandedSettingsFolder == "tools") "" else "tools" })
                     Spacer(Modifier.height(9.dp))
                     if (expandedSettingsFolder == "tools") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -831,7 +847,7 @@ fun Jarvis() {
                     }
                     }
                     Spacer(Modifier.height(12.dp))
-                    SettingsGroupHeader("◷", "PRODUCTIVIDAD Y PLANIFICACIÓN", "Tareas, agenda, rutinas y objetivos", expandedSettingsFolder == "productivity", { expandedSettingsFolder = if (expandedSettingsFolder == "productivity") "" else "productivity" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◷", "PRODUCTIVIDAD Y PLANIFICACIÓN", "Tareas, agenda, rutinas y objetivos", expandedSettingsFolder == "productivity", { expandedSettingsFolder = if (expandedSettingsFolder == "productivity") "" else "productivity" })
                     if (expandedSettingsFolder == "productivity") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
@@ -939,7 +955,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         }
                     }
                     }
-                    SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
                     if (expandedSettingsFolder == "security") {
                         Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp)) {
