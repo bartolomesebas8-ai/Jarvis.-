@@ -22,7 +22,7 @@ object JavaScriptRunner {
                 callback(CodeRunResult(false, "NO FUNCIONA", "El límite de esta versión es 50 KB por ejecución."))
                 return@post
             }
-            val web = WebView(context.applicationContext)
+            val web = WebView(context)
             var finished = false
             fun finish(result: CodeRunResult) {
                 if (finished) return
@@ -31,6 +31,9 @@ object JavaScriptRunner {
                 callback(result)
             }
             web.settings.javaScriptEnabled = true
+            web.settings.setGeolocationEnabled(false)
+            web.settings.setAllowFileAccessFromFileURLs(false)
+            web.settings.setAllowUniversalAccessFromFileURLs(false)
             web.settings.allowFileAccess = false
             web.settings.allowContentAccess = false
             web.settings.domStorageEnabled = false
