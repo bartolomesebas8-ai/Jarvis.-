@@ -228,7 +228,38 @@ fun Jarvis() {
                 lower.startsWith("encuentra en mi biblioteca")
             val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
             val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
-            val reply = if (memorySaveIntent) { val proposed = if (msg.contains(":")) msg.substringAfter(":").trim() else msg.substringAfter("recuerda esto:", "").trim(); if (proposed.isBlank()) "Escribe qué quieres guardar después de los dos puntos." else { pendingMemorySuggestion = proposed; "Te pediré confirmación antes de guardar este recuerdo." } }
+            val taskCreateIntent = lower.startsWith("crear tarea:") || lower.startsWith("agregar tarea:") || lower.startsWith("añadir tarea:")
+            val taskListIntent = lower == "mis tareas" || lower == "listar tareas" || lower == "ver tareas" || lower == "tareas pendientes"
+            val taskCompleteIntent = lower.startsWith("completar tarea:") || lower.startsWith("marcar tarea:")
+            val taskDeleteIntent = lower.startsWith("eliminar tarea:") || lower.startsWith("borrar tarea:")
+            val reply = if (taskCreateIntent) {
+                val title = msg.substringAfter(":").trim()
+                if (title.isBlank()) "Escribe el nombre después de «crear tarea:»." else if (title.length > 160) "El nombre de la tarea no puede superar 160 caracteres." else {
+                    val created = JarvisTask(java.util.UUID.randomUUID().toString(), title, "", "Media")
+                    tasks = tasks + created
+                    saveTasks(context, tasks)
+                    "Listo. Añadí «" + created.title + "» a tus tareas con prioridad media. Puedes decir «mis tareas» para consultarlas."
+                }
+            } else if (taskListIntent) {
+                val pending = tasks.filter { !it.completed }
+                if (pending.isEmpty()) "No tienes tareas pendientes." else "Tus tareas pendientes:\n" + pending.joinToString("\n") { "• " + it.title + " (" + it.priority + ")" }
+            } else if (taskCompleteIntent) {
+                val title = msg.substringAfter(":").trim()
+                val match = tasks.firstOrNull { !it.completed && it.title.equals(title, ignoreCase = true) }
+                if (match == null) "No encontré una tarea pendiente con ese nombre exacto. Escribe «mis tareas» para consultar los nombres." else {
+                    tasks = tasks.map { if (it.id == match.id) it.copy(completed = true) else it }
+                    saveTasks(context, tasks)
+                    "Marcada como completada: «" + match.title + "»."
+                }
+            } else if (taskDeleteIntent) {
+                val title = msg.substringAfter(":").trim()
+                val match = tasks.firstOrNull { it.title.equals(title, ignoreCase = true) }
+                if (match == null) "No encontré una tarea con ese nombre exacto. Escribe «mis tareas» para consultar los nombres." else {
+                    tasks = tasks.filterNot { it.id == match.id }
+                    saveTasks(context, tasks)
+                    "Eliminé la tarea «" + match.title + "» de este dispositivo."
+                }
+            } else if (memorySaveIntent) { val proposed = if (msg.contains(":")) msg.substringAfter(":").trim() else msg.substringAfter("recuerda esto:", "").trim(); if (proposed.isBlank()) "Escribe qué quieres guardar después de los dos puntos." else { pendingMemorySuggestion = proposed; "Te pediré confirmación antes de guardar este recuerdo." } }
             else if (investigationIntent) { val query = msg.substringAfter("archivos", msg.substringAfter("biblioteca", "")).trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
             else if (searchIntent) {
                 val query = msg.substringAfter("biblioteca", "").trim()
@@ -284,7 +315,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  0.9", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  1.0", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -560,7 +591,7 @@ fun Jarvis() {
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 0.9 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.0 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
