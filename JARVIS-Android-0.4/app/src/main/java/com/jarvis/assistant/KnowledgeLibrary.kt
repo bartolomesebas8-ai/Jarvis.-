@@ -45,7 +45,7 @@ object KnowledgeLibrary {
         }
         val text = String(bytes, Charsets.UTF_8)
         require(text.isNotBlank()) { "El archivo está vacío." }
-        require(!text.contains('\\u0000')) { "El archivo no parece ser texto UTF-8 válido." }
+        require(!text.contains('\u0000')) { "El archivo no parece ser texto UTF-8 válido." }
         val folder = directory(context)
         val used = folder.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
         require(used + bytes.size <= MAX_TOTAL_BYTES) { "La biblioteca alcanzó el límite local de 5 MB." }
