@@ -26,6 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import java.security.SecureRandom
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+import android.util.Base64
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -47,6 +53,11 @@ class MainActivity : ComponentActivity() {
 private const val PREFS = "jarvis_local_memory"
 private const val HISTORY = "chat_history"
 private const val MEMORIES = "saved_memories"
+private const val SECURITY_SALT = "security_pin_salt"
+private const val SECURITY_HASH = "security_pin_hash"
+private fun hashPin(pin: String, salt: ByteArray): ByteArray { val spec = PBEKeySpec(pin.toCharArray(), salt, 120000, 256); return try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded } finally { spec.clearPassword() } }
+private fun saveSecurityPin(context: android.content.Context, pin: String) { val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }; context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(SECURITY_SALT, Base64.encodeToString(salt, Base64.NO_WRAP)).putString(SECURITY_HASH, Base64.encodeToString(hashPin(pin, salt), Base64.NO_WRAP)).commit() }
+private fun hasSecurityPin(context: android.content.Context): Boolean = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).contains(SECURITY_HASH)
 private val MEMORY_CATEGORIES = listOf("Personal", "Proyectos", "Estudios", "Metas", "Temporal")
 data class MemoryItem(val category: String, val text: String)
 
@@ -107,6 +118,11 @@ fun Jarvis() {
     var showMemoryDialog by remember { mutableStateOf(false) }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
+    var showPinSetup by remember { mutableStateOf(false) }
+    var pinFirst by remember { mutableStateOf("") }
+    var pinSecond by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
+    var pinConfigured by remember { mutableStateOf(hasSecurityPin(context)) }
     var memoryInput by remember { mutableStateOf("") }
     var editingMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var selectedMemoryCategory by remember { mutableStateOf("Personal") }
@@ -214,6 +230,17 @@ fun Jarvis() {
                         }
                     }
                     Spacer(Modifier.height(12.dp))
+
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("SEGURIDAD", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text(if (pinConfigured) "Código de seguridad configurado en este dispositivo." else "Configura un código de 6 dígitos para autorizar futuras funciones protegidas.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = { pinFirst = ""; pinSecond = ""; pinError = ""; showPinSetup = true }, modifier = Modifier.fillMaxWidth()) { Text(if (pinConfigured) "Cambiar código de seguridad" else "Configurar código de seguridad") }
+                        }
+                    }
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("ESTADO DE IA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
@@ -298,6 +325,19 @@ fun Jarvis() {
             }
         }
 
+
+        if (showPinSetup) {
+            AlertDialog(onDismissRequest = { showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" }, title = { Text(if (pinConfigured) "Cambiar código" else "Crear código de seguridad") }, text = {
+                Column {
+                    Text("Elige un código de 6 dígitos. No lo compartas ni lo escribas en el chat.", fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(value = pinFirst, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinFirst = it }, label = { Text("Nuevo código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(value = pinSecond, onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) pinSecond = it }, label = { Text("Confirmar código") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+                    if (pinError.isNotBlank()) Text(pinError, color = Color(0xFFFF9B9B), fontSize = 12.sp)
+                }
+            }, confirmButton = { TextButton(onClick = { when { pinFirst.length != 6 -> pinError = "El código debe tener exactamente 6 dígitos."; pinFirst != pinSecond -> pinError = "Los códigos no coinciden."; else -> { saveSecurityPin(context, pinFirst); pinConfigured = true; showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" } } }) { Text("Guardar código") } }, dismissButton = { TextButton(onClick = { showPinSetup = false; pinFirst = ""; pinSecond = ""; pinError = "" }) { Text("Cancelar") } })
+        }
         if (showMemoryDialog) {
             AlertDialog(
                 onDismissRequest = { showMemoryDialog = false },
