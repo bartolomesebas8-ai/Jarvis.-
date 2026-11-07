@@ -36,15 +36,15 @@ object CodeWorkspaces {
 
     fun compare(first: CodeWorkspace, second: CodeWorkspace): List<String> {
         val findings = mutableListOf<String>()
-        fun declarations(source: String): Set<String> = Regex("""\\b(class|object|interface|fun|function|def)\\s+([A-Za-z_][A-Za-z0-9_]*)""")
+        fun declarations(source: String): Set<String> = Regex("""\b(class|object|interface|fun|function|def)\s+([A-Za-z_][A-Za-z0-9_]*)""")
             .findAll(source).map { it.groupValues[2] }.toSet()
         val duplicate = declarations(first.source).intersect(declarations(second.source))
         if (duplicate.isNotEmpty()) findings += "Posibles declaraciones duplicadas: ${duplicate.take(12).joinToString(", ")}."
-        val packageA = Regex("""(?m)^\\s*package\\s+([A-Za-z0-9_.]+)""").find(first.source)?.groupValues?.get(1)
-        val packageB = Regex("""(?m)^\\s*package\\s+([A-Za-z0-9_.]+)""").find(second.source)?.groupValues?.get(1)
+        val packageA = Regex("""(?m)^\s*package\s+([A-Za-z0-9_.]+)""").find(first.source)?.groupValues?.get(1)
+        val packageB = Regex("""(?m)^\s*package\s+([A-Za-z0-9_.]+)""").find(second.source)?.groupValues?.get(1)
         if (packageA != null && packageB != null && packageA != packageB) findings += "Los paquetes declarados no coinciden ($packageA frente a $packageB); revisa si esa separación es intencional."
-        val importsA = Regex("""(?m)^\\s*import\\s+([A-Za-z0-9_.*]+)""").findAll(first.source).map { it.groupValues[1] }.toSet()
-        val importsB = Regex("""(?m)^\\s*import\\s+([A-Za-z0-9_.*]+)""").findAll(second.source).map { it.groupValues[1] }.toSet()
+        val importsA = Regex("""(?m)^\s*import\s+([A-Za-z0-9_.*]+)""").findAll(first.source).map { it.groupValues[1] }.toSet()
+        val importsB = Regex("""(?m)^\s*import\s+([A-Za-z0-9_.*]+)""").findAll(second.source).map { it.groupValues[1] }.toSet()
         if (importsA.intersect(importsB).isNotEmpty()) findings += "Hay imports compartidos; normalmente no es un error, pero conviene revisar versiones y nombres en conflicto."
         if (findings.isEmpty()) findings += "No se detectaron conflictos estructurales simples con estas reglas. No demuestra compatibilidad: faltan compilación y pruebas aisladas."
         else findings += "Resultado preliminar por patrones de texto; puede haber falsos positivos y conflictos no detectados. No se ejecutó ningún código."
