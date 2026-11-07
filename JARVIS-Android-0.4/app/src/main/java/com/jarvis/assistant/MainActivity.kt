@@ -256,6 +256,9 @@ fun Jarvis() {
     var codeWorkspaceReports by remember { mutableStateOf(emptyMap<String, CodeGuardReport>()) }
     var codeGuardReport by remember { mutableStateOf<CodeGuardReport?>(null) }
     var codeGuardStatus by remember { mutableStateOf("") }
+    var codeRunResults by remember { mutableStateOf(emptyMap<String, CodeRunResult>()) }
+    var codeRunDetails by remember { mutableStateOf(emptySet<String>()) }
+    var codeRunningIds by remember { mutableStateOf(emptySet<String>()) }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -546,8 +549,17 @@ fun Jarvis() {
                                     Text(workspace.source.length.toString() + " caracteres · aislado de los demás espacios", color = Color(0xFF8FAABD), fontSize = 10.sp)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         TextButton(onClick = { codeWorkspaceName = workspace.name; codeWorkspaceSource = workspace.source }) { Text("Editar", color = cyan) }
+                                        TextButton(onClick = { if (workspace.name.substringAfterLast(".", "").lowercase() in listOf("js", "mjs")) { codeRunningIds = codeRunningIds + workspace.id; JavaScriptRunner.run(context, workspace.source) { result -> codeRunResults = codeRunResults + (workspace.id to result); codeRunningIds = codeRunningIds - workspace.id; codeRunDetails = codeRunDetails - workspace.id } } else { codeRunResults = codeRunResults + (workspace.id to CodeRunResult(false, "NO COMPATIBLE", "Esta versión ejecuta únicamente archivos JavaScript (.js o .mjs). El resto se puede analizar, pero no ejecutar todavía.")) } }) { Text(if (workspace.id in codeRunningIds) "Ejecutando…" else "Ejecutar", color = Color(0xFF9FE6B8)) }
                                         TextButton(onClick = { codeWorkspaceReports = codeWorkspaceReports + (workspace.id to CodeGuardAnalyzer.analyze(workspace.name, workspace.source)) }) { Text("Analizar", color = cyan) }
                                         TextButton(onClick = { codeWorkspaces = codeWorkspaces.filterNot { it.id == workspace.id }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceReports = codeWorkspaceReports - workspace.id; if (selectedCodeA == workspace.id) selectedCodeA = ""; if (selectedCodeB == workspace.id) selectedCodeB = "" }) { Text("Eliminar", color = Color(0xFFFF9B9B)) }
+                                    }
+                                    codeRunResults[workspace.id]?.let { result ->
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(result.output, color = if (result.success) Color(0xFF9FE6B8) else Color(0xFFFFB4A2), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        if (result.explanation.isNotBlank()) {
+                                            TextButton(onClick = { codeRunDetails = if (workspace.id in codeRunDetails) codeRunDetails - workspace.id else codeRunDetails + workspace.id }) { Text(if (workspace.id in codeRunDetails) "Ocultar explicación" else "¿Quieres saber por qué?", color = cyan, fontSize = 11.sp) }
+                                            if (workspace.id in codeRunDetails) Text(result.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                        }
                                     }
                                     codeWorkspaceReports[workspace.id]?.let { report ->
                                         Text("Análisis: " + report.language + " · " + report.analyzedLines + " líneas", color = cyan, fontSize = 11.sp)
