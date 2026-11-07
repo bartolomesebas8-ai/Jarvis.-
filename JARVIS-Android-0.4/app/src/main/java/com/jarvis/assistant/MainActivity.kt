@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -66,7 +69,7 @@ private fun saveHistory(context: android.content.Context, lines: List<Line>) {
 @Composable
 fun Jarvis() {
     var showSplash by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) { delay(1600); showSplash = false }
+    LaunchedEffect(Unit) { delay(1900); showSplash = false }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -99,35 +102,56 @@ fun Jarvis() {
 
     MaterialTheme(colorScheme = darkColorScheme(primary = cyan, background = bg, surface = panel, onSurface = Color.White)) {
         if (showSplash) {
-            Column(
-                Modifier.fillMaxSize().background(bg).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            Box(
+                Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF102B43), bg, Color(0xFF050A12)))),
+                contentAlignment = Alignment.Center
             ) {
-                Image(painterResource(R.drawable.jarvis_logo), contentDescription = "Logo de JARVIS", modifier = Modifier.size(172.dp))
-                Spacer(Modifier.height(22.dp))
-                Text("JARVIS", color = cyan, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                Text("TU ASISTENTE PERSONAL", color = Color.LightGray, fontSize = 12.sp, letterSpacing = 2.sp)
-                Spacer(Modifier.height(28.dp))
-                LinearProgressIndicator(color = cyan, trackColor = panel, modifier = Modifier.width(170.dp))
-                Spacer(Modifier.height(12.dp))
-                Text("Preparando sistemas…", color = Color.Gray, fontSize = 12.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(28.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Surface(modifier = Modifier.size(204.dp), shape = CircleShape, color = Color(0x2262E5F2)) {}
+                        Image(painterResource(R.drawable.jarvis_logo), contentDescription = "Icono de JARVIS", modifier = Modifier.size(166.dp))
+                    }
+                    Spacer(Modifier.height(28.dp))
+                    Text("J.A.R.V.I.S.", color = Color.White, fontSize = 35.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ASISTENTE PERSONAL", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp)
+                    Spacer(Modifier.height(26.dp))
+                    Surface(color = Color(0x332A6B80), shape = RoundedCornerShape(50.dp)) {
+                        Text("SISTEMA EN INICIO", color = cyan, fontSize = 10.sp, letterSpacing = 1.8.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp))
+                    }
+                    Spacer(Modifier.height(24.dp))
+                    LinearProgressIndicator(color = cyan, trackColor = Color(0xFF20364A), modifier = Modifier.width(190.dp).height(4.dp).clip(CircleShape))
+                    Spacer(Modifier.height(12.dp))
+                    Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                    Spacer(Modifier.height(34.dp))
+                    Text("JARVIS  •  0.5", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                }
             }
         } else {
             Column(Modifier.fillMaxSize().background(bg).padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(painterResource(R.drawable.jarvis_logo), contentDescription = null, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("JARVIS", color = cyan, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                        Text("ASISTENTE PERSONAL · 0.4", color = Color.LightGray, fontSize = 10.sp)
-                    }
-                    TextButton(onClick = { showClearDialog = true }) {
-                        Text("Borrar chat", color = Color(0xFFFF9B9B), fontSize = 12.sp)
+                Surface(color = panel, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = CircleShape, color = Color(0xFF1B3B50), modifier = Modifier.size(54.dp)) {
+                            Image(painterResource(R.drawable.jarvis_logo), contentDescription = "Perfil de JARVIS", modifier = Modifier.padding(3.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("J.A.R.V.I.S.", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                            Text("ASISTENTE PERSONAL", color = cyan, fontSize = 9.sp, letterSpacing = 1.6.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(6.dp).background(Color(0xFF6EE7A8), CircleShape))
+                                Spacer(Modifier.width(5.dp))
+                                Text("Memoria local activa", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                            }
+                        }
+                        TextButton(onClick = { showClearDialog = true }) { Text("Borrar", color = Color(0xFFFF9B9B), fontSize = 12.sp) }
                     }
                 }
-                Text("Memoria local activada · historial guardado en este dispositivo", color = Color(0xFF8ED9A8), fontSize = 11.sp)
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
+                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
+                }
+                Spacer(Modifier.height(12.dp))
                 Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
                     LazyColumn(
                         state = listState,
@@ -167,7 +191,7 @@ fun Jarvis() {
                     Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Versión 0.4 · Memoria local en este dispositivo", color = Color.Gray, fontSize = 11.sp)
+                Text("JARVIS 0.5 · Modo local", color = Color.Gray, fontSize = 11.sp)
             }
         }
 
