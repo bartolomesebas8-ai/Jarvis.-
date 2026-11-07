@@ -527,13 +527,19 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Crea espacios separados para cada fragmento o proyecto. Puedes pegarlos o importar archivos; cada espacio se analiza por separado. JARVIS nunca ejecuta el código.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("Crea espacios separados para cada fragmento o proyecto. Puedes pegarlos o importar archivos; cada espacio se analiza por separado. En esta versión, el laboratorio todavía no ejecuta programas: reconoce y analiza texto de código, pero no compila ni corre Python, Java, Kotlin, JavaScript u otros lenguajes.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             OutlinedTextField(value = codeWorkspaceName, onValueChange = { codeWorkspaceName = it.take(60) }, modifier = Modifier.fillMaxWidth(), label = { Text("Nombre del espacio") }, singleLine = true)
                             OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código (máximo 200 000 caracteres)") }, minLines = 4, maxLines = 8)
                             Button(onClick = { try { require(codeWorkspaceName.isNotBlank()) { "Escribe un nombre para el espacio." }; require(codeWorkspaceSource.isNotBlank()) { "Pega código antes de guardar." }; val existing = codeWorkspaces.firstOrNull { it.name.equals(codeWorkspaceName.trim(), true) }; val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), codeWorkspaceName.trim(), codeWorkspaceSource); codeWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceName = ""; codeWorkspaceSource = ""; codeGuardStatus = "Espacio guardado por separado." } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el espacio." } }, enabled = codeWorkspaceName.isNotBlank() && codeWorkspaceSource.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar espacio de código") }
                             Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo como espacio separado") }
                             if (codeGuardStatus.isNotBlank()) Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
                             Text("Espacios guardados: " + codeWorkspaces.size + " / 20", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
+                                Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("NO COMPATIBLE · Los motores de ejecución aún no están integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Text("Por ahora puedes guardar, analizar y comparar código. JARVIS no dirá FUNCIONA ni NO FUNCIONA sobre un programa que no haya podido ejecutar realmente.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                            } }
                             codeWorkspaces.forEach { workspace ->
                                 Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
                                     Text(workspace.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
