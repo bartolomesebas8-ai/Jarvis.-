@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inspect:
@@ -13,27 +13,34 @@ jobs:
       - name: Descargar repositorio
         uses: actions/checkout@v4
 
-      - name: Extraer y preparar informe
+      - name: Extraer y guardar archivos de la app
         shell: bash
         run: |
           set -euo pipefail
           ZIP="JARVIS-0.3-motores.zip"
           test -f "$ZIP"
-          mkdir -p extracted informe
+          mkdir -p extracted .inspection/JARVIS-0.3
           unzip -q "$ZIP" -d extracted
           PROJECT="extracted/JARVIS-Android"
-          test -d "$PROJECT/app/src/main"
-          cp -R "$PROJECT/app/src/main" informe/
-          cp "$PROJECT/app/build.gradle.kts" informe/ 2>/dev/null || true
-          cp "$PROJECT/settings.gradle.kts" informe/ 2>/dev/null || true
-          find informe -type f | sort > informe/archivos-incluidos.txt
-          echo "Inspección preparada. Archivos incluidos:"
-          cat informe/archivos-incluidos.txt
+          MAIN="$PROJECT/app/src/main"
+          test -d "$MAIN"
+          cp -R "$MAIN/java" .inspection/JARVIS-0.3/
+          if [ -d "$MAIN/res" ]; then cp -R "$MAIN/res" .inspection/JARVIS-0.3/; fi
+          if [ -f "$MAIN/AndroidManifest.xml" ]; then cp "$MAIN/AndroidManifest.xml" .inspection/JARVIS-0.3/; fi
+          find .inspection/JARVIS-0.3 -type f | sort > .inspection/JARVIS-0.3/archivos.txt
+          echo "Archivos de código y recursos preparados:"
+          cat .inspection/JARVIS-0.3/archivos.txt
 
-      - name: Publicar archivos para revisión
-        uses: actions/upload-artifact@v4
-        with:
-          name: JARVIS-0.3-inspeccion
-          path: informe/
-          if-no-files-found: error
-          retention-days: 7
+      - name: Guardar informe en GitHub para revisión
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .inspection/JARVIS-0.3
+          if git diff --cached --quiet; then
+            echo "El informe ya estaba actualizado."
+          else
+            git commit -m "Guardar informe de inspección JARVIS 0.3"
+            git push
+          fi
