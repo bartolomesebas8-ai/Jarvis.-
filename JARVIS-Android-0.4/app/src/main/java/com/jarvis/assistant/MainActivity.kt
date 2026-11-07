@@ -864,7 +864,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 1.6 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 1.7 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
