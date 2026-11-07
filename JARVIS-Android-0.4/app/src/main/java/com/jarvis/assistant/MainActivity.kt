@@ -573,12 +573,14 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("BIBLIOTECA DE CONOCIMIENTO Y CÓDIGOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                            Text("BIBLIOTECA DE CONOCIMIENTO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Importa apuntes y archivos de texto o código. JARVIS los guarda dentro de esta aplicación y permite buscar palabras en ellos sin Internet. Los archivos se analizan como texto: nunca se ejecutan.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Text("Guarda documentos o escribe y pega texto directamente. JARVIS lo conserva en este dispositivo y permite buscarlo sin Internet.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
                             Button(onClick = { knowledgePicker.launch(arrayOf("text/plain", "text/markdown", "text/csv", "application/json", "application/xml")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento") }
+                            OutlinedTextField(value = knowledgeManualText, onValueChange = { if (it.length <= 512 * 1024) knowledgeManualText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("O escribe/pega texto aquí") }, minLines = 4, maxLines = 8)
+                            Button(onClick = { try { require(knowledgeManualText.isNotBlank()) { "Escribe o pega texto antes de guardarlo." }; val added = KnowledgeLibrary.import(context, "nota-manual-" + System.currentTimeMillis() + ".txt", java.io.ByteArrayInputStream(knowledgeManualText.toByteArray(Charsets.UTF_8))); knowledgeDocs = KnowledgeLibrary.list(context); knowledgeManualText = ""; knowledgeStatus = "Texto guardado: " + added.name; knowledgeResults = emptyList() } catch (error: Exception) { knowledgeStatus = error.message ?: "No se pudo guardar el texto." } }, enabled = knowledgeManualText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar texto en Biblioteca") }
                             if (knowledgeStatus.isNotBlank()) {
                                 Spacer(Modifier.height(6.dp))
                                 Text(knowledgeStatus, color = Color(0xFFFFD28A), fontSize = 11.sp)
