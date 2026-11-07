@@ -261,7 +261,15 @@ fun Jarvis() {
     var codeRunningIds by remember { mutableStateOf(emptySet<String>()) }
     var pendingCodeRun by remember { mutableStateOf<CodeWorkspace?>(null) }
     var codeConsentReady by remember { mutableStateOf(false) }
-    LaunchedEffect(pendingCodeRun?.id) { codeConsentReady = false; if (pendingCodeRun != null) { delay(30_000); codeConsentReady = true } }
+    LaunchedEffect(pendingCodeRun?.id, pendingCodeRun?.source) {
+        val source = pendingCodeRun?.source.orEmpty()
+        val asksForPhoneData = Regex("(?i)(READ_CONTACTS|READ_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|CAMERA|RECORD_AUDIO|READ_MEDIA_|contacts|sms|calllog|geolocation|navigator\\.camera|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(source)
+        codeConsentReady = !asksForPhoneData
+        if (pendingCodeRun != null && asksForPhoneData) {
+            delay(30_000)
+            codeConsentReady = true
+        }
+    }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -1212,11 +1220,12 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Text("Permisos concedidos: ninguno. La ejecución de JavaScript permanece aislada y no recibe acceso a datos personales, archivos, red, cuentas, sensores ni procesos del sistema.")
                         Text("No se puede habilitar acceso a información personal ni ampliar estos permisos desde esta pantalla.", fontWeight = FontWeight.Bold, color = Color(0xFFFFB4A2))
                         Spacer(Modifier.height(8.dp))
-                        Text(if (codeConsentReady) "Ya transcurrieron 30 segundos. Puedes decidir." else "Tómate un momento para revisar. La confirmación estará disponible después de 30 segundos.")
+                        val asksForPhoneData = Regex("(?i)(READ_CONTACTS|READ_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|CAMERA|RECORD_AUDIO|READ_MEDIA_|contacts|sms|calllog|geolocation|navigator\\.camera|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(candidate.source)
+                        if (asksForPhoneData) Text(if (codeConsentReady) "Ya transcurrieron 30 segundos. Revisa y decide." else "Este código parece solicitar datos o permisos del teléfono. Revisa la explicación; podrás confirmar después de 30 segundos.")
                     }
                 },
                 confirmButton = {
-                    TextButton(enabled = codeConsentReady && candidate.name.substringAfterLast(".", "").lowercase() in listOf("js", "mjs") && report.language == "JavaScript", onClick = {
+                    TextButton(enabled = codeConsentReady && report.language.startsWith("JavaScript"), onClick = {
                         pendingCodeRun = null
                         codeRunningIds = codeRunningIds + candidate.id
                         JavaScriptRunner.run(context, candidate.source) { result ->
