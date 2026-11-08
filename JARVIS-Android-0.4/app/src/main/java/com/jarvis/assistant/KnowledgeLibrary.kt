@@ -93,6 +93,60 @@ object KnowledgeLibrary {
             .take(limit)
     }
 
+    /**
+     * Answers simple questions from explicit "key: value" entries in the local library.
+     * This is deterministic local lookup, not an AI-generated answer.
+     */
+    fun answerQuestion(context: Context, question: String): String? {
+        fun normalize(value: String): String = java.text.Normalizer.normalize(
+            value.lowercase(Locale.ROOT), java.text.Normalizer.Form.NFD
+        ).replace(Regex("\\p{M}+"), "").replace(Regex("[^\\p{L}\\p{N} ]+"), " ")
+            .replace(Regex("\\s+"), " ").trim()
+
+        val q = normalize(question)
+        if (q.isBlank()) return null
+        val aliases = mapOf(
+            "nombre" to setOf("nombre", "llamo", "llamas", "llamado", "llamada"),
+            "edad" to setOf("edad", "anos"),
+            "ciudad" to setOf("ciudad", "vivo", "vives", "resido"),
+            "pais" to setOf("pais", "nacionalidad"),
+            "cumpleanos" to setOf("cumpleanos", "naci", "nacimiento")
+        )
+        val stopWords = setOf("cual", "cuales", "que", "quien", "como", "cuando", "donde", "es", "soy", "mi", "mis", "me", "el", "la", "los", "las", "de", "del", "por", "favor", "dime", "sabes", "recuerdas")
+        data class Candidate(val key: String, val value: String, val score: Int)
+        val candidates = mutableListOf<Candidate>()
+
+        list(context).forEach { document ->
+            val body = runCatching { read(context, document.id) }.getOrNull() ?: return@forEach
+            body.lineSequence().forEach { line ->
+                val split = line.split(":", limit = 2)
+                if (split.size != 2) return@forEach
+                val key = split[0].trim()
+                val value = split[1].trim()
+                if (key.isBlank() || value.isBlank() || key.length > 60) return@forEach
+                val normalizedKey = normalize(key)
+                val keyWords = normalizedKey.split(" ").filter { it.isNotBlank() }
+                val keyAliases = aliases[normalizedKey].orEmpty()
+                val exact = q.contains(normalizedKey)
+                val aliasMatch = keyAliases.any { q.split(" ").contains(it) }
+                val allKeyWords = keyWords.isNotEmpty() && keyWords.all { q.split(" ").contains(it) }
+                val questionWords = q.split(" ").filter { it.length > 1 && it !in stopWords }
+                val overlap = questionWords.count { word -> keyWords.any { it == word || it.startsWith(word) || word.startsWith(it) } }
+                val score = when {
+                    exact -> 100 + keyWords.size
+                    aliasMatch -> 90
+                    allKeyWords -> 80 + keyWords.size
+                    overlap > 0 -> 40 + overlap
+                    else -> 0
+                }
+                if (score > 0) candidates.add(Candidate(key, value, score))
+            }
+        }
+        val best = candidates.maxByOrNull { it.score } ?: return null
+        return if (normalize(best.key) == "nombre") "Tu nombre es ${best.value}."
+        else "Según tu Biblioteca, ${best.key}: ${best.value}."
+    }
+
     fun remove(context: Context, id: String): Boolean {
         require(id.matches(Regex("[a-f0-9-]{36}"))) { "Identificador de documento no válido." }
         val folder = directory(context)
