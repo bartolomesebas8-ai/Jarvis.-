@@ -108,18 +108,29 @@ object KnowledgeLibrary {
             "cual", "cuales", "que", "quien", "como", "cuando", "donde", "por", "para",
             "es", "son", "soy", "eres", "mi", "mis", "me", "yo", "tu", "tus", "el", "la",
             "los", "las", "de", "del", "un", "una", "en", "con", "sobre", "favor",
-            "dime", "sabes", "recuerdas", "dijiste", "contaste", "puedes", "podrias"
+            "dime", "sabes", "recuerdas", "dijiste", "contaste", "puedes", "podrias",
+            "tengo", "tienes", "exactamente", "actualmente", "acaso"
         )
+        // Relaciona preguntas naturales con etiquetas comunes de perfiles personales.
         val synonyms = mapOf(
             "gusta" to setOf("gustan", "favorito", "favorita", "prefiero", "prefieres"),
             "gustan" to setOf("gusta", "favorito", "favorita", "prefiero"),
             "prefiero" to setOf("gusta", "gustan", "favorito", "favorita"),
-            "vivo" to setOf("vives", "resido", "resides", "vivienda", "casa", "ciudad", "residencia"),
-            "vives" to setOf("vivo", "resido", "resides", "vivienda", "casa", "ciudad", "residencia")
+            "llamo" to setOf("nombre", "nombres"),
+            "llamas" to setOf("nombre", "nombres"),
+            "llama" to setOf("nombre"),
+            "nombre" to setOf("llamo", "llamas"),
+            "vivo" to setOf("vives", "resido", "resides", "vivienda", "casa", "ciudad", "residencia", "direccion", "domicilio", "ubicacion", "distrito", "provincia", "region", "pais"),
+            "vives" to setOf("vivo", "resido", "resides", "vivienda", "casa", "ciudad", "residencia", "direccion", "domicilio", "ubicacion", "distrito", "provincia", "region", "pais"),
+            "resido" to setOf("vivo", "vives", "ciudad", "direccion", "domicilio", "ubicacion", "residencia"),
+            "resides" to setOf("vivo", "vives", "ciudad", "direccion", "domicilio", "ubicacion", "residencia"),
+            "direccion" to setOf("vivo", "vives", "domicilio", "ubicacion", "casa"),
+            "edad" to setOf("anos", "cumpleanos")
         )
         val normalizedQuestion = normalize(question)
         val questionWords = normalizedQuestion.split(" ")
             .filter { it.length > 1 && it !in stopWords }.distinct()
+            .toMutableSet().apply { toList().forEach { word -> addAll(synonyms[word].orEmpty()) } }
         if (questionWords.isEmpty()) return null
 
         fun scoreAgainst(text: String): Int {
