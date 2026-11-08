@@ -330,6 +330,7 @@ fun Jarvis() {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val startupScope = rememberCoroutineScope()
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure() }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Qwen 3." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
@@ -552,12 +553,8 @@ fun Jarvis() {
         val msg = input.trim()
         if (msg.isNotEmpty()) {
             val lower = msg.lowercase(Locale.ROOT)
-            val searchIntent = lower.startsWith("busca en mi biblioteca") ||
-                lower.startsWith("buscar en mi biblioteca") ||
-                lower.startsWith("busca en biblioteca") ||
-                lower.startsWith("buscar en biblioteca") ||
-                lower.startsWith("consulta mi biblioteca") ||
-                lower.startsWith("encuentra en mi biblioteca")
+            val searchIntent = lower.startsWith("busca ") || lower.startsWith("buscar ") ||
+                lower.startsWith("consulta ") || lower.startsWith("encuentra ")
             val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
             val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
             val taskCreateIntent = lower.startsWith("crear tarea:") || lower.startsWith("agregar tarea:") || lower.startsWith("añadir tarea:")
@@ -638,18 +635,26 @@ fun Jarvis() {
             } else if (memorySaveIntent) { val proposed = if (msg.contains(":")) msg.substringAfter(":").trim() else msg.substringAfter("recuerda esto:", "").trim(); if (proposed.isBlank()) "Escribe qué quieres guardar después de los dos puntos." else { pendingMemorySuggestion = proposed; "Te pediré confirmación antes de guardar este recuerdo." } }
             else if (investigationIntent) { val query = msg.substringAfter("archivos", msg.substringAfter("biblioteca", "")).trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
             else if (searchIntent) {
-                val query = msg.substringAfter("biblioteca", "").trim()
-                    .removePrefix("de ").removePrefix("sobre ").removePrefix("acerca de ").trim()
+                val query = msg.substringAfter("busca", msg.substringAfter("buscar", msg.substringAfter("consulta", msg.substringAfter("encuentra", ""))))
+                    .trim().removePrefix("en ").removePrefix("mi ").removePrefix("mis ")
+                    .removePrefix("los ").removePrefix("las ").removePrefix("archivos ")
+                    .removePrefix("documentos ").removePrefix("información sobre ")
+                    .removePrefix("informacion sobre ").removePrefix("sobre ").removePrefix("acerca de ")
+                    .removePrefix("de ").trim()
                 if (query.isBlank()) {
                     "Dime qué palabra, función o tema quieres buscar en los documentos importados."
                 } else {
-                    val matches = KnowledgeLibrary.search(context, query, 5)
-                    if (matches.isEmpty()) {
-                        "No encontré coincidencias en tu biblioteca para: «" + query + "». Importa los documentos correspondientes o prueba con otras palabras."
+                    if (!JarvisSharedStorage.hasAccess()) {
+                        "Todavía no tengo permiso para revisar el almacenamiento del teléfono. Autoriza «Permitir administrar todos los archivos» desde la pantalla inicial."
                     } else {
-                        "Encontré " + matches.size + " resultado(s) en tu biblioteca:\\n\\n" +
-                            matches.joinToString("\n\n") { match -> "📄 " + match.document.name + "\n" + match.excerpt } +
-                            "\\n\\nBúsqueda local: no se ejecutó ningún archivo."
+                        val matches = JarvisSharedStorage.search(query, 8)
+                        if (matches.isEmpty()) {
+                            "Revisé los archivos accesibles del teléfono y no encontré información parecida sobre «" + query + "». No tengo acceso a Internet en este momento, así que no puedo buscarlo en la web."
+                        } else {
+                            "Encontré " + matches.size + " resultado(s) en el almacenamiento del teléfono:\\n\\n" +
+                                matches.joinToString("\\n\\n") { hit -> "📄 " + hit.file.name + "\\n" + hit.file.parent + "\\n" + hit.excerpt } +
+                                "\\n\\nBúsqueda local: no se ejecutó ni modificó ningún archivo."
+                        }
                     }
                 }
             } else {
@@ -770,7 +775,13 @@ fun Jarvis() {
                     Button(
                         onClick = {
                             if (!startupLoading) {
-                                startupScope.launch {
+                                if (!JarvisSharedStorage.hasAccess()) {
+                                    val permissionIntent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                                    try { allFilesAccessLauncher.launch(permissionIntent) }
+                                    catch (_: Exception) { allFilesAccessLauncher.launch(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+                                } else startupScope.launch {
                                     startupLoading = true
                                     startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
                                     try {
