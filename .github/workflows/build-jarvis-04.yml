@@ -1,4 +1,4 @@
-name: Construir APK de JARVIS 3.11
+name: Construir APK de JARVIS 3.12
 
 on:
   workflow_dispatch:
@@ -35,6 +35,6 @@ jobs:
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-3.11-debug
+          name: JARVIS-3.12-debug
           path: JARVIS-Android-0.4/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
