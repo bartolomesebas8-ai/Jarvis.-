@@ -137,6 +137,42 @@ object LocalLlamaRuntime {
         }
     }
 
+
+    /**
+     * Reports storage available to JARVIS without requesting broad device-storage permissions.
+     * The report reflects the app's private data volume, where GGUF files are copied.
+     */
+    fun storageReport(context: Context, selectedModelUri: String? = null): String {
+        val modelsDir = modelsDirectory(context.applicationContext)
+        val stats = android.os.StatFs(modelsDir.absolutePath)
+        val totalBytes = stats.totalBytes
+        val freeBytes = stats.availableBytes
+        val selectedBytes = selectedModelUri?.let { uriString ->
+            runCatching {
+                context.contentResolver.openAssetFileDescriptor(Uri.parse(uriString), "r")?.use { it.length }
+            }.getOrNull()
+        } ?: -1L
+
+        fun formatBytes(bytes: Long): String =
+            if (bytes < 0L) "No disponible"
+            else String.format(java.util.Locale.getDefault(), "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+
+        val estimatedRequired = if (selectedBytes > 0L) selectedBytes + 64L * 1024L * 1024L else -1L
+        val status = when {
+            selectedBytes <= 0L -> "Selecciona un GGUF para calcular el espacio necesario."
+            freeBytes >= estimatedRequired -> "Hay espacio disponible para copiar el modelo."
+            else -> "Espacio insuficiente en el almacenamiento privado de JARVIS."
+        }
+        return listOf(
+            "DIAGNÓSTICO DE ALMACENAMIENTO",
+            "Espacio total del volumen: ${formatBytes(totalBytes)}",
+            "Espacio libre disponible: ${formatBytes(freeBytes)}",
+            "Tamaño del GGUF seleccionado: ${formatBytes(selectedBytes)}",
+            "Espacio estimado necesario: ${formatBytes(estimatedRequired)}",
+            status
+        ).joinToString("\n")
+    }
+
     private fun modelsDirectory(context: Context): File =
         File(context.filesDir, "local_models").apply {
             if (!exists() && !mkdirs()) {
