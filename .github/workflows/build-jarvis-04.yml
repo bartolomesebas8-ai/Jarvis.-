@@ -1,4 +1,4 @@
-name: Construir APK de JARVIS 3.8
+name: Construir APK de JARVIS 3.9
 
 on:
   workflow_dispatch:
@@ -26,11 +26,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      - name: Preparar Android SDK, NDK y CMake
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "ndk;29.0.13113456 cmake;3.31.6"
       - name: Construir APK
         run: gradle -p JARVIS-Android-0.4 :app:assembleDebug
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-3.8-debug
+          name: JARVIS-3.9-debug
           path: JARVIS-Android-0.4/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
