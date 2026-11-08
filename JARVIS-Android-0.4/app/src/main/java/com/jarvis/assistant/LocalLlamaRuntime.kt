@@ -137,7 +137,7 @@ object LocalLlamaRuntime {
 
         activeEngine = engine
         activeModelPath = modelFile.absolutePath
-        "Modelo GGUF cargado en JARVIS: ${modelFile.name} (${modelFile.length() / (1024 * 1024)} MB)."
+        return "Modelo JARVIS cargado: ${modelFile.name} (${modelFile.length() / (1024 * 1024)} MB)."
     }
 
     suspend fun generate(prompt: String, maxTokens: Int = 384): String =
