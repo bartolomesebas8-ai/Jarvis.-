@@ -53,6 +53,9 @@ object LocalLlamaRuntime {
         if (initialState is InferenceEngine.State.Error) {
             throw IllegalStateException("No se pudo iniciar llama.cpp: ${initialState.exception.message}")
         }
+        if (engine.state.value is InferenceEngine.State.ModelReady || engine.state.value is InferenceEngine.State.Error) {
+            engine.cleanUp()
+        }
         engine.loadModel(modelFile.absolutePath)
         engine.setSystemPrompt(systemPrompt)
         activeEngine = engine
