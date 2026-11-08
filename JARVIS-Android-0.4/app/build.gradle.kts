@@ -10,8 +10,8 @@ android {
         applicationId = "com.jarvis.assistant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 34
-        versionName = "3.4"
+        versionCode = 35
+        versionName = "3.5"
     }
     buildFeatures { compose = true }
     compileOptions {
