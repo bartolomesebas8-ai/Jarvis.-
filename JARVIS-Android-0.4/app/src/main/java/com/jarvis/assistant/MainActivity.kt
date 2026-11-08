@@ -372,6 +372,7 @@ fun Jarvis() {
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
+    var storageReport by remember { mutableStateOf(LocalLlamaRuntime.storageReport(context, LocalModelManager.load(context)?.uri)) }
     var localModelStatus by remember { mutableStateOf("Selecciona el motor de IA de JARVIS o importa un modelo GGUF compatible.") }
     val jarvisScope = rememberCoroutineScope()
     var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
@@ -444,6 +445,7 @@ fun Jarvis() {
             try {
                 val selected = LocalModelManager.remember(context, uri)
                 localModel = selected
+                storageReport = LocalLlamaRuntime.storageReport(context, selected.uri)
                 localModelStatus = "Archivo seleccionado: ${selected.displayName}. Pulsa «Cargar modelo en JARVIS» para importarlo y abrirlo."
             } catch (error: Exception) {
                 localModelStatus = error.message ?: "No se pudo seleccionar el modelo GGUF."
@@ -879,6 +881,23 @@ fun Jarvis() {
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
+                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text("ALMACENAMIENTO DEL MODELO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(storageReport, color = Color(0xFFB8C9D8), fontSize = 11.sp, lineHeight = 17.sp)
+                                    Spacer(Modifier.height(8.dp))
+                                    TextButton(
+                                        onClick = {
+                                            storageReport = LocalLlamaRuntime.storageReport(context, localModel?.uri)
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Actualizar diagnóstico", color = cyan)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
                             if (localModel != null) {
                                 Text("MODELO SELECCIONADO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Text(localModel!!.displayName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
@@ -886,6 +905,7 @@ fun Jarvis() {
                                 TextButton(onClick = {
                                     LocalModelManager.clear(context)
                                     localModel = null
+                                    storageReport = LocalLlamaRuntime.storageReport(context)
                                     localModelStatus = "No hay ningún archivo GGUF seleccionado."
                                 }) { Text("Quitar selección", color = Color(0xFFFFA0A0)) }
                             } else {
