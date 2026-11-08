@@ -334,7 +334,7 @@ fun Jarvis() {
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val startupScope = rememberCoroutineScope()
-    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure() }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Qwen 3." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Qwen 3." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
@@ -657,8 +657,8 @@ fun Jarvis() {
                             "Revisé los archivos accesibles del teléfono y no encontré información parecida sobre «" + query + "». No tengo acceso a Internet en este momento, así que no puedo buscarlo en la web."
                         } else {
                             "Encontré " + matches.size + " resultado(s) en el almacenamiento del teléfono:\\n\\n" +
-                                matches.joinToString("\\n\\n") { hit -> "📄 " + hit.file.name + "\\n" + hit.file.parent + "\\n" + hit.excerpt } +
-                                "\\n\\nBúsqueda local: no se ejecutó ni modificó ningún archivo."
+                                matches.joinToString("\n\n") { hit -> "📄 " + hit.file.name + "\n" + hit.file.parent + "\n" + hit.excerpt } +
+                                "\n\nBúsqueda local: no se ejecutó ni modificó ningún archivo."
                         }
                     }
                 }
