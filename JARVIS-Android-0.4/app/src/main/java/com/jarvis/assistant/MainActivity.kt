@@ -917,7 +917,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(8.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
                                 Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("Enrutador central activo · JavaScript disponible · Python y Java: detección y análisis disponibles; ejecución pendiente de integrar sus motores.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Text("Enrutador central activo · JavaScript y Python 3.12 disponibles · Java mediante intérprete Java-like. Los motores Python y Java se ejecutan en un proceso Android aislado con límite de tiempo.", color = Color(0xFFFFD28A), fontSize = 12.sp)
                                 Text("Cada ejecución requiere revisión y confirmación. La prueba está limitada: sin acceso a datos personales, archivos del teléfono, red ni procesos del sistema.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                             } }
                             codeWorkspaces.forEach { workspace ->
