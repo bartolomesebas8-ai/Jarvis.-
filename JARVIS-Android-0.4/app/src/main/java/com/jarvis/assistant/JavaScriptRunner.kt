@@ -65,7 +65,7 @@ object JavaScriptRunner {
                     var result=(function(){ __SOURCE__
                     })();
                     if(result!==undefined) lines.push(String(result));
-                    document.getElementById('jarvis-result').textContent=lines.join('\\n') || 'Ejecución completada.';
+                    document.getElementById('jarvis-result').textContent=lines.join('\n') || 'Ejecución completada.';
                   } catch(e) {
                     document.getElementById('jarvis-result').textContent='ERROR: '+(e && e.message ? e.message : String(e));
                   }
