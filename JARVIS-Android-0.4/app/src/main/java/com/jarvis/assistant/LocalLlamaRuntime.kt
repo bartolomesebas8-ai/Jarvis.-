@@ -82,6 +82,42 @@ object LocalLlamaRuntime {
         }
     }
 
+    suspend fun loadBundled(
+        context: Context,
+        assetName: String,
+        systemPrompt: String
+    ): String = engineMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            val modelsDir = modelsDirectory(appContext)
+            val modelFile = File(modelsDir, assetName)
+            if (!modelFile.isFile || modelFile.length() < 1_000_000_000L) {
+                val temporary = File(modelsDir, "$assetName.copying")
+                temporary.delete()
+                try {
+                    appContext.assets.open(assetName).buffered().use { input ->
+                        temporary.outputStream().buffered().use { output ->
+                            input.copyTo(output, 1024 * 1024)
+                        }
+                    }
+                    require(temporary.length() in 1_000_000_000L..2_000_000_000L) {
+                        "El modelo incluido en JARVIS está incompleto. Reinstala la aplicación."
+                    }
+                    if (modelFile.exists() && !modelFile.delete()) {
+                        throw IllegalStateException("No se pudo reemplazar la copia anterior del modelo.")
+                    }
+                    if (!temporary.renameTo(modelFile)) {
+                        throw IllegalStateException("No se pudo preparar el modelo local de JARVIS.")
+                    }
+                } catch (error: Exception) {
+                    temporary.delete()
+                    throw error
+                }
+            }
+            initializeEngine(appContext, modelFile, systemPrompt)
+        }
+    }
+
     suspend fun loadDownloaded(
         context: Context,
         modelFile: File,
