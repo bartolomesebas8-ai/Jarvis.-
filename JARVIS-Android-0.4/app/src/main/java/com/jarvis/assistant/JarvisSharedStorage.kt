@@ -35,6 +35,22 @@ object JarvisSharedStorage {
         return root
     }
 
+    fun syncExistingData(context: Context) {
+        if (!hasAccess()) return
+        val prefs = context.getSharedPreferences("jarvis_local_memory", Context.MODE_PRIVATE)
+        val exports = listOf(
+            "saved_memories" to ("Memoria" to "recuerdos.json"),
+            "chat_history" to ("Historial" to "conversaciones.json"),
+            "jarvis_tasks" to ("Configuracion" to "tareas.json"),
+            "jarvis_goals" to ("Configuracion" to "metas.json"),
+            "jarvis_routines" to ("Configuracion" to "rutinas.json")
+        )
+        exports.forEach { (key, destination) ->
+            val value = prefs.getString(key, null)
+            if (!value.isNullOrBlank()) runCatching { saveSnapshot(destination.first, destination.second, value) }
+        }
+    }
+
     private fun partition(root: File): File {
         val dirs = root.listFiles { f -> f.isDirectory && f.name.matches(Regex("Datos_[0-9]{3}")) }
             ?.sortedBy { it.name }.orEmpty()
