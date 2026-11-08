@@ -942,9 +942,14 @@ fun Jarvis() {
                                     codeRunResults[workspace.id]?.let { result ->
                                         Spacer(Modifier.height(6.dp))
                                         Text(result.output, color = if (result.success) Color(0xFF9FE6B8) else Color(0xFFFFB4A2), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("Motor: ${result.engine} · ${result.durationMs} ms", color = cyan, fontSize = 10.sp)
                                         if (result.explanation.isNotBlank()) {
                                             TextButton(onClick = { codeRunDetails = if (workspace.id in codeRunDetails) codeRunDetails - workspace.id else codeRunDetails + workspace.id }) { Text(if (workspace.id in codeRunDetails) "Ocultar resultado" else "Ver resultado", color = cyan, fontSize = 11.sp) }
-                                            if (workspace.id in codeRunDetails) Text(result.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                            if (workspace.id in codeRunDetails) {
+                                                Text("Lenguaje: ${result.language}", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                                Text("Comprobaciones: ${result.checks}", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                                Text(result.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                            }
                                         }
                                     }
                                     codeWorkspaceReports[workspace.id]?.let { report ->
@@ -1495,7 +1500,8 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
             val candidate = pendingCodeRun!!
             val report = remember(candidate.id, candidate.source) { CodeGuardAnalyzer.analyze(candidate.name, candidate.source) }
             val asksForPhoneData = Regex("(?i)(READ_CONTACTS|WRITE_CONTACTS|READ_SMS|RECEIVE_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_PHONE_STATE|READ_MEDIA_|CAMERA|RECORD_AUDIO|ContactsContract|Telephony\\.Sms|MediaStore|ContentResolver|navigator\\.geolocation|getUserMedia|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(candidate.source)
-            val canRunJavaScript = report.language == "JavaScript" && !report.blockedForExecution && report.confidence.startsWith("Alta")
+            val route = remember(candidate.id, candidate.source) { CodeExecutionRouter.route(report) }
+            val canRunCode = route.ready
             AlertDialog(
                 onDismissRequest = { pendingCodeRun = null },
                 title = { Text(if (asksForPhoneData) "Revisión de permisos y datos" else "Confirmar ejecución") },
@@ -1515,15 +1521,20 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         if (report.blockedForExecution) {
                             Spacer(Modifier.height(8.dp))
                             Text("Code Guard bloqueó la ejecución por señales de alto riesgo. Revisa el análisis antes de continuar.")
-                        } else if (!canRunJavaScript) {
+                        } else if (!route.ready) {
                             Spacer(Modifier.height(8.dp))
-                            Text("Este código no se reconoce como JavaScript compatible, por lo que JARVIS no puede ejecutarlo todavía.")
+                            Text("Lenguaje detectado: ${route.language} · Motor: ${route.engine}")
+                            Text(route.reason)
+                        } else {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Enrutamiento automático: ${route.language} → ${route.engine}")
+                            Text(route.reason)
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(
-                        enabled = codeConsentReady && canRunJavaScript,
+                        enabled = codeConsentReady && canRunCode,
                         onClick = {
                             pendingCodeRun = null
                             codeRunningIds = codeRunningIds + candidate.id
