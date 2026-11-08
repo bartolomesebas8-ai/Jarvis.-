@@ -23,6 +23,7 @@ android {
         cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" }
     }
     buildFeatures { compose = true }
+    androidResources { noCompress += "gguf" }
     chaquopy { defaultConfig { version = "3.12" } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
