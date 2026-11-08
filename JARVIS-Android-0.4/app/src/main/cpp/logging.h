@@ -22,8 +22,10 @@
 #endif
 #endif
 
+// Avoid __android_log_is_loggable(): it was introduced in API 30 and
+// JARVIS supports API 28+. Android priorities increase with severity.
 static inline int ai_should_log(int prio) {
-    return __android_log_is_loggable(prio, LOG_TAG, LOG_MIN_LEVEL);
+    return prio >= LOG_MIN_LEVEL;
 }
 
 #if LOG_MIN_LEVEL <= ANDROID_LOG_VERBOSE
