@@ -509,7 +509,7 @@ fun Jarvis() {
                     appendLine("• Permiso de notificaciones: ${if (reminderPermissionGranted) "Concedido" else "No concedido"}")
                     appendLine()
                     appendLine("LIMITACIONES Y COMPROBACIÓN:")
-                    appendLine("• IA externa Groq/Qwen: no conectada todavía.")
+                    appendLine("• IA local llama.cpp: ${if (llamaReady) "modelo cargado" else "sin modelo cargado"}.")
                     appendLine("• Este informe muestra datos registrados; no ejecuta una prueba técnica de cada módulo.")
                     appendLine("• No puedo asegurar que todo funcione correctamente sin realizar pruebas.")
                 }
@@ -556,7 +556,7 @@ fun Jarvis() {
                         "No encontré coincidencias en tu biblioteca para: «" + query + "». Importa los documentos correspondientes o prueba con otras palabras."
                     } else {
                         "Encontré " + matches.size + " resultado(s) en tu biblioteca:\\n\\n" +
-                            matches.joinToString("\\n\\n") { match -> "📄 " + match.document.name + "\\n" + match.excerpt } +
+                            matches.joinToString("\n\n") { match -> "📄 " + match.document.name + "\n" + match.excerpt } +
                             "\\n\\nBúsqueda local: no se ejecutó ningún archivo."
                     }
                 }
@@ -571,15 +571,15 @@ fun Jarvis() {
                 saveHistory(context, updated)
                 input = ""
                 keyboard?.hide()
-                val recentContext = lines.dropLast(2).takeLast(8).joinToString("\\n") { "${it.who}: ${it.text}".take(700) }
-                val memoryContext = memories.takeLast(18).joinToString("\\n") { "• ${it.category}: ${it.text}".take(500) }
+                val recentContext = lines.dropLast(2).takeLast(8).joinToString("\n") { "${it.who}: ${it.text}".take(700) }
+                val memoryContext = memories.takeLast(18).joinToString("\n") { "• ${it.category}: ${it.text}".take(500) }
                 val documentContext = runCatching {
-                    KnowledgeLibrary.search(context, msg, 3).joinToString("\\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
+                    KnowledgeLibrary.search(context, msg, 3).joinToString("\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
                 }.getOrDefault("")
                 val enrichedPrompt = buildString {
-                    if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\\n\\n")
-                    if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\\n\\n")
-                    if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\\n\\n")
+                    if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\n\n")
+                    if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\n\n")
+                    if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\n\n")
                     append("MENSAJE ACTUAL DEL USUARIO:\\n").append(msg)
                 }
                 jarvisScope.launch {
