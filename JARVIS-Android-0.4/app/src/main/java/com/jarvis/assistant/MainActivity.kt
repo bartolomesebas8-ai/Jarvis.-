@@ -179,6 +179,7 @@ private fun saveRoutines(context: android.content.Context, routines: List<Jarvis
         array.put(JSONObject().put("id", routine.id).put("title", routine.title).put("cadence", routine.cadence).put("completedDates", dates))
     }
     context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(ROUTINES_KEY, array.toString()).commit()
+    runCatching { JarvisSharedStorage.saveSnapshot("Configuracion", "rutinas.json", array.toString()) }
 }
 private fun routineDateKey(date: java.time.LocalDate = java.time.LocalDate.now()): String = date.toString()
 private fun saveGoals(context: android.content.Context, goals: List<JarvisGoal>) {
@@ -189,11 +190,13 @@ private fun saveGoals(context: android.content.Context, goals: List<JarvisGoal>)
         array.put(JSONObject().put("id", goal.id).put("title", goal.title).put("category", goal.category).put("progress", goal.progress.toDouble()).put("taskIds", ids))
     }
     context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(GOALS_KEY, array.toString()).commit()
+    runCatching { JarvisSharedStorage.saveSnapshot("Configuracion", "metas.json", array.toString()) }
 }
 private fun saveTasks(context: android.content.Context, tasks: List<JarvisTask>) {
     val a = JSONArray()
     tasks.forEach { a.put(JSONObject().put("id",it.id).put("title",it.title).put("dueDate",it.dueDate).put("priority",it.priority).put("completed",it.completed)) }
     context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putString(TASKS,a.toString()).commit()
+    runCatching { JarvisSharedStorage.saveSnapshot("Configuracion", "tareas.json", a.toString()) }
 }
 
 private fun loadHistory(context: android.content.Context): List<Line> {
@@ -217,6 +220,7 @@ private fun saveHistory(context: android.content.Context, lines: List<Line>) {
     lines.forEach { line -> array.put(JSONObject().put("who", line.who).put("text", line.text).put("timestamp", line.timestamp)) }
     context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
         .edit().putString(HISTORY, array.toString()).commit()
+    runCatching { JarvisSharedStorage.saveSnapshot("Historial", "conversaciones.json", array.toString()) }
 }
 
 private fun loadMemories(context: android.content.Context): List<MemoryItem> {
@@ -547,6 +551,7 @@ fun Jarvis() {
         items.forEach { item -> array.put(JSONObject().put("category", item.category).put("text", item.text)) }
         context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             .edit().putString(MEMORIES, array.toString()).commit()
+        runCatching { JarvisSharedStorage.saveSnapshot("Memoria", "recuerdos.json", array.toString()) }
     }
 
     fun sendMessage() {
