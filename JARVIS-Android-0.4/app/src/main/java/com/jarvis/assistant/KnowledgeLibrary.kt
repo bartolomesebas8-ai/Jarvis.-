@@ -128,8 +128,9 @@ object KnowledgeLibrary {
             "edad" to setOf("anos", "cumpleanos")
         )
         val normalizedQuestion = normalize(question)
-        val questionWords = normalizedQuestion.split(" ")
-            .filter { it.length > 1 && it !in stopWords }.distinct()
+        val rawQuestionWords = normalizedQuestion.split(" ").filter { it.length > 1 }.distinct()
+        val questionWords = rawQuestionWords
+            .filter { it !in stopWords }
             .toMutableSet().apply { toList().forEach { word -> addAll(synonyms[word].orEmpty()) } }
         if (questionWords.isEmpty()) return null
 
