@@ -1538,10 +1538,19 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         onClick = {
                             pendingCodeRun = null
                             codeRunningIds = codeRunningIds + candidate.id
-                            JavaScriptRunner.run(context, candidate.source) { result ->
+                            val onResult: (CodeRunResult) -> Unit = { result ->
                                 codeRunResults = codeRunResults + (candidate.id to result)
                                 codeRunningIds = codeRunningIds - candidate.id
                                 codeRunDetails = codeRunDetails + candidate.id
+                            }
+                            when (route.engine) {
+                                CodeEngine.JAVASCRIPT_WEBVIEW -> JavaScriptRunner.run(context, candidate.source, onResult)
+                                CodeEngine.PYTHON -> IsolatedCodeRunner.run(context, "Python", candidate.source, onResult)
+                                CodeEngine.JAVA_INTERPRETER -> IsolatedCodeRunner.run(context, "Java", candidate.source, onResult)
+                                CodeEngine.NONE -> {
+                                    codeRunningIds = codeRunningIds - candidate.id
+                                    onResult(CodeRunResult(false, "NO FUNCIONA", route.reason, route.language, "Ninguno"))
+                                }
                             }
                         }
                     ) { Text("Confirmar") }
