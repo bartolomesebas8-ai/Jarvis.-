@@ -377,7 +377,7 @@ fun Jarvis() {
     var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
     var llamaLoading by remember { mutableStateOf(false) }
     var llamaBusy by remember { mutableStateOf(false) }
-    var qwenDownloaded by remember { mutableStateOf(Qwen3ModelDownloader.isDownloaded(context)) }
+    var qwenDownloaded by remember { mutableStateOf(true) }
     var qwenDownloading by remember { mutableStateOf(false) }
     var qwenDownloadProgress by remember { mutableIntStateOf(0) }
 
@@ -829,46 +829,30 @@ fun Jarvis() {
                                     Text("MOTOR DE INTELIGENCIA ARTIFICIAL · JARVIS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                                     Spacer(Modifier.height(5.dp))
                                     Text("Q4_K_M · GGUF · ${Qwen3ModelDownloader.MODEL_SIZE_LABEL}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("Descarga manual iniciada por ti. El archivo se guarda en el almacenamiento privado de JARVIS y funciona sin conexión una vez instalado. Se recomienda Wi-Fi y espacio libre adicional.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                    if (qwenDownloading) {
+                                    Text("El modelo ya viene incluido en la instalación. JARVIS abre normalmente y solo prepara el motor cuando pulses este botón.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                    if (qwenDownloading || llamaLoading) {
                                         Spacer(Modifier.height(8.dp))
-                                        LinearProgressIndicator(
-                                            progress = { qwenDownloadProgress / 100f },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            color = cyan
-                                        )
-                                        Text("Descargando: $qwenDownloadProgress%", color = cyan, fontSize = 11.sp)
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = cyan)
+                                        Text("Preparando el motor local…", color = cyan, fontSize = 11.sp)
                                     }
                                     Spacer(Modifier.height(10.dp))
                                     Button(
                                         onClick = {
                                             if (!qwenDownloading && !llamaLoading && !llamaBusy) {
                                                 jarvisScope.launch {
-                                                    qwenDownloading = !qwenDownloaded
+                                                    qwenDownloading = true
                                                     llamaLoading = true
-                                                    qwenDownloadProgress = if (qwenDownloaded) 100 else 0
                                                     try {
-                                                        val modelFile = if (qwenDownloaded) {
-                                                            Qwen3ModelDownloader.localFile(context)
-                                                        } else {
-                                                            Qwen3ModelDownloader.download(context) { progress ->
-                                                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                                                    qwenDownloadProgress = progress
-                                                                    localModelStatus = "Descargando el motor de IA de JARVIS: $progress%. Mantén la aplicación abierta y evita interrumpir la conexión."
-                                                                }
-                                                            }.also { qwenDownloaded = true }
-                                                        }
-                                                        qwenDownloading = false
-                                                        localModelStatus = "Descarga verificada. Inicializando el motor de inteligencia artificial de JARVIS…"
-                                                        localModelStatus = LocalLlamaRuntime.loadDownloaded(
+                                                        localModelStatus = "Preparando el modelo incluido y activando JARVIS…"
+                                                        localModelStatus = LocalLlamaRuntime.loadBundled(
                                                             context,
-                                                            modelFile,
+                                                            Qwen3ModelDownloader.MODEL_FILE_NAME,
                                                             "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Tu identidad y nombre visible son siempre JARVIS. Responde en español cuando el usuario escriba en español. Razona cuidadosamente, explica de forma clara y concisa, utiliza el contexto y los recuerdos que se adjunten, no inventes datos y reconoce tus límites. No afirmes haber realizado acciones que no ejecutaste."
                                                         )
                                                         llamaReady = true
                                                     } catch (error: Exception) {
                                                         llamaReady = false
-                                                        localModelStatus = error.message ?: "No se pudo descargar o iniciar el motor de IA de JARVIS."
+                                                        localModelStatus = error.message ?: "No se pudo iniciar el motor local de JARVIS."
                                                     } finally {
                                                         qwenDownloading = false
                                                         llamaLoading = false
@@ -879,14 +863,8 @@ fun Jarvis() {
                                         enabled = !qwenDownloading && !llamaLoading && !llamaBusy,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Text(
-                                            when {
-                                                qwenDownloading -> "Descargando motor de JARVIS…"
-                                                llamaLoading -> "Iniciando JARVIS…"
-                                                qwenDownloaded -> "Iniciar motor de JARVIS"
-                                                else -> "Instalar inteligencia artificial de JARVIS"
-                                            }
-                                        )
+                                        Text(if (qwenDownloading || llamaLoading) "Iniciando JARVIS…" else "Iniciar JARVIS")
+                                    }
                                     }
                                 }
                             }
