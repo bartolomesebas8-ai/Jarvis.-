@@ -948,7 +948,7 @@ fun Jarvis() {
                                         }
                                     }
                                     codeWorkspaceReports[workspace.id]?.let { report ->
-                                        Text("Análisis: " + report.language + " · " + report.analyzedLines + " líneas", color = cyan, fontSize = 11.sp)
+                                        Text("Análisis: " + report.language + " · confianza " + report.confidence + " · " + report.analyzedLines + " líneas", color = cyan, fontSize = 11.sp)
                                         Text(report.summary, color = Color(0xFFFFD28A), fontSize = 11.sp)
                                         report.findings.take(12).forEach { finding -> Text("Línea " + finding.line + " · " + finding.risk + " · " + finding.title + ": " + finding.explanation, color = Color(0xFFB8C9D8), fontSize = 10.sp) }
                                         if (report.findings.isEmpty()) Text("Sin coincidencias; no demuestra que sea seguro.", color = Color(0xFFFFD28A), fontSize = 10.sp)
@@ -1495,7 +1495,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
             val candidate = pendingCodeRun!!
             val report = remember(candidate.id, candidate.source) { CodeGuardAnalyzer.analyze(candidate.name, candidate.source) }
             val asksForPhoneData = Regex("(?i)(READ_CONTACTS|WRITE_CONTACTS|READ_SMS|RECEIVE_SMS|READ_CALL_LOG|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_PHONE_STATE|READ_MEDIA_|CAMERA|RECORD_AUDIO|ContactsContract|Telephony\\.Sms|MediaStore|ContentResolver|navigator\\.geolocation|getUserMedia|microphone|ubicaci[oó]n|c[aá]mara|micr[oó]fono|contactos|mensajes|datos personales)").containsMatchIn(candidate.source)
-            val canRunJavaScript = report.language.startsWith("JavaScript")
+            val canRunJavaScript = report.language == "JavaScript" && !report.blockedForExecution && report.confidence.startsWith("Alta")
             AlertDialog(
                 onDismissRequest = { pendingCodeRun = null },
                 title = { Text(if (asksForPhoneData) "Revisión de permisos y datos" else "Confirmar ejecución") },
@@ -1512,7 +1512,10 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         } else {
                             Text("¿Quieres ejecutar este código? No se detectaron señales conocidas de solicitudes de datos personales o permisos del teléfono. El análisis es heurístico y no garantiza que el código sea seguro.")
                         }
-                        if (!canRunJavaScript) {
+                        if (report.blockedForExecution) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Code Guard bloqueó la ejecución por señales de alto riesgo. Revisa el análisis antes de continuar.")
+                        } else if (!canRunJavaScript) {
                             Spacer(Modifier.height(8.dp))
                             Text("Este código no se reconoce como JavaScript compatible, por lo que JARVIS no puede ejecutarlo todavía.")
                         }
