@@ -870,7 +870,7 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Pega tu JavaScript o carga la prueba de diagnóstico. Pulsa Guardar y ejecutar; JARVIS guardará el espacio y te pedirá confirmar antes de ejecutarlo.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("Pega o importa JavaScript, Python o Java. JARVIS detectará el lenguaje y seleccionará automáticamente el motor disponible. Pulsa Guardar y ejecutar para revisar el código antes de confirmar.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Spacer(Modifier.height(10.dp))
                             Text("1. CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código") }, placeholder = { Text("El código aparecerá aquí…") }, minLines = 7, maxLines = 12)
@@ -917,7 +917,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(8.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
                                 Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("JavaScript: ejecución limitada disponible · otros motores aún no integrados.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Text("Enrutador central activo · JavaScript disponible · Python y Java: detección y análisis disponibles; ejecución pendiente de integrar sus motores.", color = Color(0xFFFFD28A), fontSize = 12.sp)
                                 Text("Cada ejecución requiere revisión y confirmación. La prueba está limitada: sin acceso a datos personales, archivos del teléfono, red ni procesos del sistema.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                             } }
                             codeWorkspaces.forEach { workspace ->
