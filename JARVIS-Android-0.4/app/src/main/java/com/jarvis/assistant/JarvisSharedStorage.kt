@@ -84,7 +84,8 @@ object JarvisSharedStorage {
         .replace(Regex("\\s+"), " ").trim()
 
     fun search(query: String, limit: Int = 8): List<SharedFileHit> {
-        val root = root() ?: return emptyList()
+        if (!hasAccess()) return emptyList()
+        val root = Environment.getExternalStorageDirectory()
         if (!root.exists()) return emptyList()
         val terms = normalize(query).split(" ").filter { it.length >= 2 }.distinct()
         if (terms.isEmpty()) return emptyList()
