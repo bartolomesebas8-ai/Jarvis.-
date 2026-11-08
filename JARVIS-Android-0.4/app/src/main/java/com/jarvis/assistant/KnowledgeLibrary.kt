@@ -94,28 +94,50 @@ object KnowledgeLibrary {
     }
 
     /**
-     * Answers simple questions from explicit "key: value" entries in the local library.
-     * This is deterministic local lookup, not an AI-generated answer.
+     * Retrieves relevant information from the user's saved documents, saved memories,
+     * and previous chat turns. This is local keyword retrieval, not an AI model.
      */
     fun answerQuestion(context: Context, question: String): String? {
         fun normalize(value: String): String = java.text.Normalizer.normalize(
             value.lowercase(Locale.ROOT), java.text.Normalizer.Form.NFD
-        ).replace(Regex("\\p{M}+"), "").replace(Regex("[^\\p{L}\\p{N} ]+"), " ")
+        ).replace(Regex("\\p{M}+"), "")
+            .replace(Regex("[^\\p{L}\\p{N} ]+"), " ")
             .replace(Regex("\\s+"), " ").trim()
 
-        val q = normalize(question)
-        if (q.isBlank()) return null
-        val aliases = mapOf(
-            "nombre" to setOf("nombre", "llamo", "llamas", "llamado", "llamada"),
-            "edad" to setOf("edad", "anos"),
-            "ciudad" to setOf("ciudad", "vivo", "vives", "resido"),
-            "pais" to setOf("pais", "nacionalidad"),
-            "cumpleanos" to setOf("cumpleanos", "naci", "nacimiento")
+        val stopWords = setOf(
+            "cual", "cuales", "que", "quien", "como", "cuando", "donde", "por", "para",
+            "es", "son", "soy", "eres", "mi", "mis", "me", "yo", "tu", "tus", "el", "la",
+            "los", "las", "de", "del", "un", "una", "en", "con", "sobre", "favor",
+            "dime", "sabes", "recuerdas", "dijiste", "contaste", "puedes", "podrias"
         )
-        val stopWords = setOf("cual", "cuales", "que", "quien", "como", "cuando", "donde", "es", "soy", "mi", "mis", "me", "el", "la", "los", "las", "de", "del", "por", "favor", "dime", "sabes", "recuerdas")
-        data class Candidate(val key: String, val value: String, val score: Int)
+        val synonyms = mapOf(
+            "gusta" to setOf("gustan", "favorito", "favorita", "prefiero", "prefieres"),
+            "gustan" to setOf("gusta", "favorito", "favorita", "prefiero"),
+            "prefiero" to setOf("gusta", "gustan", "favorito", "favorita"),
+            "vivo" to setOf("vives", "resido", "resides", "vivienda", "casa"),
+            "vives" to setOf("vivo", "resido", "resides", "vivienda", "casa")
+        )
+        val normalizedQuestion = normalize(question)
+        val questionWords = normalizedQuestion.split(" ")
+            .filter { it.length > 1 && it !in stopWords }.distinct()
+        if (questionWords.isEmpty()) return null
+
+        fun scoreAgainst(text: String): Int {
+            val normalizedText = normalize(text)
+            val words = normalizedText.split(" ").filter { it.isNotBlank() }.toSet()
+            val hits = questionWords.count { queryWord ->
+                queryWord in words ||
+                    words.any { it.startsWith(queryWord) || queryWord.startsWith(it) } ||
+                    synonyms[queryWord].orEmpty().any { it in words }
+            }
+            val phraseBonus = if (normalizedText.contains(normalizedQuestion)) 30 else 0
+            return hits * 20 + phraseBonus
+        }
+
+        data class Candidate(val score: Int, val priority: Int, val answer: String)
         val candidates = mutableListOf<Candidate>()
 
+        // Structured facts and imported documents.
         list(context).forEach documentLoop@ { document ->
             val body = runCatching { read(context, document.id) }.getOrNull() ?: return@documentLoop
             body.lineSequence().forEach lineLoop@ { line ->
@@ -123,28 +145,59 @@ object KnowledgeLibrary {
                 if (split.size != 2) return@lineLoop
                 val key = split[0].trim()
                 val value = split[1].trim()
-                if (key.isBlank() || value.isBlank() || key.length > 60) return@lineLoop
-                val normalizedKey = normalize(key)
-                val keyWords = normalizedKey.split(" ").filter { it.isNotBlank() }
-                val keyAliases = aliases[normalizedKey].orEmpty()
-                val exact = q.contains(normalizedKey)
-                val aliasMatch = keyAliases.any { q.split(" ").contains(it) }
-                val allKeyWords = keyWords.isNotEmpty() && keyWords.all { q.split(" ").contains(it) }
-                val questionWords = q.split(" ").filter { it.length > 1 && it !in stopWords }
-                val overlap = questionWords.count { word -> keyWords.any { it == word || it.startsWith(word) || word.startsWith(it) } }
-                val score = when {
-                    exact -> 100 + keyWords.size
-                    aliasMatch -> 90
-                    allKeyWords -> 80 + keyWords.size
-                    overlap > 0 -> 40 + overlap
-                    else -> 0
-                }
-                if (score > 0) candidates.add(Candidate(key, value, score))
+                if (key.isBlank() || value.isBlank() || key.length > 100) return@lineLoop
+                val score = scoreAgainst(key)
+                if (score > 0) candidates.add(Candidate(score + 15, 3, value))
+            }
+            val docScore = scoreAgainst(document.name)
+            if (docScore > 0) {
+                val excerpt = body.replace(Regex("\\s+"), " ").trim().take(500)
+                if (excerpt.isNotBlank()) candidates.add(Candidate(docScore, 1, excerpt))
             }
         }
-        val best = candidates.maxByOrNull { it.score } ?: return null
-        return if (normalize(best.key) == "nombre") "Tu nombre es ${best.value}."
-        else "Según tu Biblioteca, ${best.key}: ${best.value}."
+
+        // Manually saved memories.
+        val prefs = context.getSharedPreferences("jarvis_local_memory", Context.MODE_PRIVATE)
+        val memoriesRaw = prefs.getString("saved_memories", null)
+        if (!memoriesRaw.isNullOrBlank()) {
+            runCatching {
+                val array = org.json.JSONArray(memoriesRaw)
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val savedText = item.optString("text", "").trim()
+                    if (savedText.isBlank()) continue
+                    val score = scoreAgainst(savedText)
+                    if (score > 0) candidates.add(Candidate(score + 10, 2, savedText))
+                }
+            }
+        }
+
+        // Previous user/assistant exchanges are already persisted locally as chat history.
+        val historyRaw = prefs.getString("chat_history", null)
+        if (!historyRaw.isNullOrBlank()) {
+            runCatching {
+                val array = org.json.JSONArray(historyRaw)
+                var previousUser: String? = null
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val who = item.optString("who", "")
+                    val text = item.optString("text", "").trim()
+                    if (who == "TÚ") {
+                        previousUser = text
+                    } else if (who == "JARVIS" && !previousUser.isNullOrBlank() && text.isNotBlank()) {
+                        val score = scoreAgainst(previousUser!!)
+                        if (score > 0) candidates.add(Candidate(score, 1, text))
+                        previousUser = null
+                    }
+                }
+            }
+        }
+
+        val minimumScore = if (questionWords.size == 1) 20 else 25
+        return candidates
+            .filter { it.score >= minimumScore && it.answer.isNotBlank() }
+            .maxWithOrNull(compareBy<Candidate> { it.score }.thenBy { it.priority })
+            ?.answer
     }
 
     fun remove(context: Context, id: String): Boolean {
