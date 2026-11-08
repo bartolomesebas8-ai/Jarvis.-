@@ -865,7 +865,6 @@ fun Jarvis() {
                                     ) {
                                         Text(if (qwenDownloading || llamaLoading) "Iniciando JARVIS…" else "Iniciar JARVIS")
                                     }
-                                    }
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
