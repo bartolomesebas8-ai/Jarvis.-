@@ -18,8 +18,8 @@ data class KnowledgeMatch(
 )
 
 object KnowledgeLibrary {
-    private const val MAX_FILE_BYTES = 512 * 1024
-    private const val MAX_TOTAL_BYTES = 5L * 1024 * 1024
+    private const val MAX_FILE_BYTES = 2 * 1024 * 1024
+    private const val MAX_TOTAL_BYTES = 20L * 1024 * 1024
     private val allowedExtensions = setOf("txt", "md", "json", "xml", "csv")
 
     private fun directory(context: Context): File =
@@ -38,7 +38,7 @@ object KnowledgeLibrary {
                 val count = stream.read(buffer)
                 if (count < 0) break
                 total += count
-                require(total <= MAX_FILE_BYTES) { "Cada archivo debe pesar como máximo 512 KB." }
+                require(total <= MAX_FILE_BYTES) { "Cada archivo debe pesar como máximo 2 MB." }
                 output.write(buffer, 0, count)
             }
             output.toByteArray()
@@ -48,7 +48,7 @@ object KnowledgeLibrary {
         require(!text.contains('\u0000')) { "El archivo no parece ser texto UTF-8 válido." }
         val folder = directory(context)
         val used = folder.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
-        require(used + bytes.size <= MAX_TOTAL_BYTES) { "La biblioteca alcanzó el límite local de 5 MB." }
+        require(used + bytes.size <= MAX_TOTAL_BYTES) { "La biblioteca alcanzó el límite local de 20 MB." }
 
         val id = java.util.UUID.randomUUID().toString()
         val stored = File(folder, "$id.txt")
