@@ -80,29 +80,41 @@ object CodeGuardAnalyzer {
 
         val critical = findings.any { it.risk == CodeRisk.CRITICAL || it.risk == CodeRisk.HIGH }
         val summary = when {
-            critical -> "Se encontraron señales de alto riesgo. Ejecución bloqueada."
-            findings.isNotEmpty() -> "Se encontraron patrones que requieren revisión. Ejecución bloqueada en esta etapa."
-            else -> "No se detectaron patrones cubiertos por las reglas actuales. Esto NO demuestra que el código sea seguro; la ejecución sigue bloqueada."
+            critical -> "Se encontraron señales de alto riesgo. Revisa estas líneas antes de ejecutar el código."
+            findings.isNotEmpty() -> "Se encontraron patrones que conviene revisar antes de ejecutar el código."
+            else -> "No se detectaron patrones de riesgo cubiertos por estas reglas. Esto no demuestra que el código sea seguro."
         }
         return CodeGuardReport(language, findings.distinctBy { Triple(it.line, it.ruleId, it.evidence) },
             lines.size, true, summary)
     }
 
     private fun detectLanguage(fileName: String, source: String): String {
-        return when (fileName.substringAfterLast('.', "").lowercase()) {
-            "py" -> "Python"
-            "js", "mjs", "cjs" -> "JavaScript"
-            "kt", "kts" -> "Kotlin"
-            "java" -> "Java"
-            else -> when {
-                source.contains("fun main(") || source.contains("package ") && source.contains("val ") -> "Kotlin probable"
-                source.contains("def ") && source.contains(":") -> "Python probable"
-                source.contains("function ") || source.contains("=>") ||
-                    Regex("\\b(console\\s*\\.\\s*(log|info|warn|error)|const|let|var)\\b").containsMatchIn(source) ||
-                    Regex("\\bJSON\\s*\\.\\s*(parse|stringify)\\b").containsMatchIn(source) ->
-                    "JavaScript probable"
-                else -> "Desconocido"
-            }
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        when (extension) {
+            "py" -> return "Python"
+            "js", "mjs", "cjs" -> return "JavaScript"
+            "kt", "kts" -> return "Kotlin"
+            "java" -> return "Java"
         }
+
+        // File names created by the editor often have no extension. Detect common
+        // JavaScript syntax instead of rejecting valid pasted programs.
+        val text = source.trim()
+        val jsSignals = listOf(
+            Regex("(?m)^\\s*(const|let|var)\\s+[A-Za-z_$]"),
+            Regex("\\bconsole\\s*\\.\\s*(log|info|warn|error)\\s*\\("),
+            Regex("\\b(function|async)\\s+[A-Za-z_$][\\w$]*\\s*\\("),
+            Regex("=>"),
+            Regex("\\b(JSON|Math|Array|Object|Promise)\\s*\\."),
+            Regex("(?m)^\\s*(if|for|while|switch)\\s*\\(")
+        )
+        val jsMatches = jsSignals.count { it.containsMatchIn(text) }
+        if (jsMatches >= 1 && !text.contains("fun main(") && !Regex("(?m)^\\s*def\\s+").containsMatchIn(text)) {
+            return "JavaScript"
+        }
+        if (text.contains("fun main(") || (text.contains("package ") && Regex("\\b(val|var)\\s+").containsMatchIn(text))) return "Kotlin probable"
+        if (Regex("(?m)^\\s*def\\s+").containsMatchIn(text)) return "Python probable"
+        if (Regex("(?m)^\\s*(public\\s+)?class\\s+").containsMatchIn(text) && text.contains("System.out")) return "Java probable"
+        return "Desconocido"
     }
 }
