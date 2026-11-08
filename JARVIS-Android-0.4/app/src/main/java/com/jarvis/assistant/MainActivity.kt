@@ -380,6 +380,17 @@ fun Jarvis() {
     var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("qwen_started_once", false)) }
     var startupLoading by remember { mutableStateOf(false) }
     var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
+    LaunchedEffect(firstStartRequired) {
+        if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
+            runCatching {
+                LocalLlamaRuntime.loadBundled(
+                    context,
+                    "jarvis-model.gguf",
+                    "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
+                )
+            }
+        }
+    }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
