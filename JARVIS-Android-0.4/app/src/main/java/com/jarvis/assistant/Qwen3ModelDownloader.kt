@@ -35,7 +35,7 @@ object Qwen3ModelDownloader {
     ): File = withContext(Dispatchers.IO) {
         val directory = File(context.applicationContext.filesDir, "local_models")
         if (!directory.exists() && !directory.mkdirs()) {
-            throw IllegalStateException("No se pudo preparar el almacenamiento privado para Qwen3.")
+            throw IllegalStateException("No se pudo preparar el almacenamiento privado para JARVIS.")
         }
         val destination = File(directory, MODEL_FILE_NAME)
         if (destination.isFile && destination.length() in MIN_MODEL_BYTES..MAX_MODEL_BYTES) {
@@ -58,14 +58,14 @@ object Qwen3ModelDownloader {
             connection.connect()
             val status = connection.responseCode
             require(status == HttpURLConnection.HTTP_OK) {
-                "Hugging Face respondió HTTP $status al solicitar el modelo Qwen3."
+                "Hugging Face respondió HTTP $status al solicitar el modelo JARVIS."
             }
-            val expectedBytes = connection.contentLengthLong
-            require(expectedBytes in MIN_MODEL_BYTES..MAX_MODEL_BYTES) {
-                "El tamaño recibido no coincide con el archivo Qwen3 1.7B Q4_K_M esperado."
-            }
-            require(directory.usableSpace >= expectedBytes + 128L * 1024L * 1024L) {
-                "No hay espacio suficiente. Se necesita el modelo de 1,28 GB y espacio adicional para instalarlo."
+            // Hugging Face/CDN responses may omit Content-Length or use chunked transfer.
+            // Accept those responses and validate the actual byte count after streaming.
+            val expectedBytes = connection.contentLengthLong.takeIf { it > 0L }
+            val requiredSpace = (expectedBytes ?: MIN_MODEL_BYTES) + 128L * 1024L * 1024L
+            require(directory.usableSpace >= requiredSpace) {
+                "No hay espacio suficiente en el almacenamiento privado de JARVIS. Libera al menos 1,2 GB y vuelve a intentarlo."
             }
 
             val coroutineContext = currentCoroutineContext()
@@ -78,22 +78,34 @@ object Qwen3ModelDownloader {
                         val count = input.read(buffer)
                         if (count < 0) break
                         downloaded += count
-                        require(downloaded <= expectedBytes && downloaded <= MAX_MODEL_BYTES) {
-                            "La descarga superó el tamaño esperado; se canceló por seguridad."
+                        require(downloaded <= MAX_MODEL_BYTES) {
+                            "La descarga superó el tamaño máximo permitido; se canceló por seguridad."
+                        }
+                        if (expectedBytes != null) {
+                            require(downloaded <= expectedBytes) {
+                                "La descarga superó el tamaño anunciado por el servidor."
+                            }
                         }
                         output.write(buffer, 0, count)
-                        onProgress(((downloaded * 100L) / expectedBytes).toInt().coerceIn(0, 99))
+                        if (expectedBytes != null) {
+                            onProgress(((downloaded * 100L) / expectedBytes).toInt().coerceIn(0, 99))
+                        } else {
+                            onProgress(((downloaded * 100L) / MAX_MODEL_BYTES).toInt().coerceIn(0, 95))
+                        }
                     }
                 }
             }
-            require(downloaded == expectedBytes && temporary.length() in MIN_MODEL_BYTES..MAX_MODEL_BYTES) {
-                "La descarga de Qwen3 quedó incompleta. Inténtalo de nuevo con una conexión estable."
+            require(
+                temporary.length() in MIN_MODEL_BYTES..MAX_MODEL_BYTES &&
+                    (expectedBytes == null || downloaded == expectedBytes)
+            ) {
+                "La descarga del motor de JARVIS quedó incompleta o el tamaño no es válido. Inténtalo de nuevo con una conexión estable."
             }
             if (destination.exists() && !destination.delete()) {
-                throw IllegalStateException("No se pudo reemplazar el archivo Qwen3 anterior.")
+                throw IllegalStateException("No se pudo reemplazar el archivo motor de JARVIS anterior.")
             }
             if (!temporary.renameTo(destination)) {
-                throw IllegalStateException("No se pudo finalizar la instalación local de Qwen3.")
+                throw IllegalStateException("No se pudo finalizar la instalación local de JARVIS.")
             }
             onProgress(100)
             destination
