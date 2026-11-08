@@ -26,10 +26,10 @@ object CodeExecutionRouter {
         return when (report.language) {
             "JavaScript" -> CodeRoute("JavaScript", CodeEngine.JAVASCRIPT_WEBVIEW, true,
                 "Se utilizará WebView restringido: sin red, archivos ni permisos del teléfono y con límite de tiempo.")
-            "Python" -> CodeRoute("Python", CodeEngine.PYTHON, false,
-                "El motor Python todavía no está integrado. El código puede analizarse, pero no ejecutarse.")
-            "Java" -> CodeRoute("Java", CodeEngine.JAVA_INTERPRETER, false,
-                "El intérprete Java todavía no está integrado. El código puede analizarse, pero no ejecutarse.")
+            "Python" -> CodeRoute("Python", CodeEngine.PYTHON, true,
+                "Se utilizará Python 3.12 dentro de un proceso Android aislado, sin permisos de la app y con límite de tiempo.")
+            "Java" -> CodeRoute("Java", CodeEngine.JAVA_INTERPRETER, true,
+                "Se utilizará BeanShell en un proceso Android aislado. Admite sintaxis Java-like, no todo el JDK ni compilación Java completa.")
             else -> CodeRoute(report.language, CodeEngine.NONE, false,
                 "Este lenguaje aún no tiene un motor de ejecución compatible.")
         }
