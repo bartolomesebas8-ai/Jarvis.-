@@ -632,8 +632,9 @@ fun Jarvis() {
                     }
                 }
             } else {
-                KnowledgeLibrary.answerQuestion(context, msg)
-                    ?: if (llamaReady) "__JARVIS_LOCAL_LLM__" else "Recibí tu mensaje y lo guardé en este dispositivo. Carga un modelo GGUF desde Ajustes > Inteligencia Artificial Local para activar las respuestas de IA."
+                if (llamaReady) "__JARVIS_LOCAL_LLM__"
+                else KnowledgeLibrary.answerQuestion(context, msg)
+                    ?: "Tu información está guardada en la Biblioteca, pero para generar respuestas conversacionales inicia el motor de JARVIS en Ajustes > Inteligencia Artificial Local."
             }
             if (reply == "__JARVIS_LOCAL_LLM__") {
                 val thinking = Line("JARVIS", "JARVIS está pensando…")
@@ -1102,27 +1103,8 @@ fun Jarvis() {
                                     }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 11.sp) }
                                 }
                             }
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(value = knowledgeQuery, onValueChange = { knowledgeQuery = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Buscar en la biblioteca") }, singleLine = true)
-                            Button(onClick = {
-                                knowledgeResults = KnowledgeLibrary.search(context, knowledgeQuery)
-                                knowledgeStatus = if (knowledgeQuery.isBlank()) "Escribe una palabra o frase para buscar." else "Coincidencias encontradas: ${knowledgeResults.size}"
-                            }, enabled = knowledgeQuery.isNotBlank() && knowledgeDocs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Buscar") }
-                            Button(onClick = { try { investigationReport = LibraryInvestigator.investigate(context, knowledgeQuery); val report = investigationReport!!; knowledgeStatus = "${report.hits.size} fragmentos en ${report.matchedDocuments} documentos." } catch (error: Exception) { knowledgeStatus = error.message ?: "Error de investigación." } }, enabled = knowledgeQuery.isNotBlank() && knowledgeDocs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text("Investigar todos los archivos") }
-                            investigationReport?.let { report ->
-                                Text("Informe local · ${report.matchedDocuments}/${report.documentsScanned} documentos", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                report.hits.forEach { hit -> Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) { Text("${hit.document.name} · línea ${hit.lineNumber} · relevancia ${hit.score}", color = cyan, fontSize = 11.sp); Text(hit.excerpt, color = Color(0xFFB8C9D8), fontSize = 11.sp) } } }
-                                Text("Coincidencias de texto; aún no es síntesis semántica de IA.", color = Color(0xFFFFD28A), fontSize = 10.sp)
-                            }
-                            knowledgeResults.forEach { match ->
-                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
-                                    Column(Modifier.padding(10.dp)) {
-                                        Text(match.document.name, color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        Text(match.excerpt, color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                    }
-                                }
-                                Spacer(Modifier.height(6.dp))
-                            }
+                            Text("JARVIS consultará estos documentos automáticamente cuando le hagas preguntas en el chat. No necesitas realizar una búsqueda manual.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+
                         }
                     }
                     }
