@@ -8,9 +8,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -251,6 +259,66 @@ private fun SettingsGroupHeader(icon: String, title: String, subtitle: String, e
             }
             Text(if (expanded) "⌄" else "›", color = Color(0xFF54D6E8), fontSize = 23.sp, fontWeight = FontWeight.Light)
         }
+    }
+}
+
+
+@Composable
+private fun HolographicOrb(size: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "orbital-loading")
+    val rotation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "orbital-rotation"
+    )
+    val reverseRotation = transition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 6200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "counter-rotation"
+    )
+    Box(
+        modifier = modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier.fillMaxSize()
+                .background(Color(0x2239BFFF), CircleShape)
+                .border(1.dp, Color(0x8857DFFF), CircleShape)
+        )
+        Box(
+            Modifier.fillMaxSize(0.76f)
+                .background(
+                    Brush.radialGradient(
+                        listOf(Color(0xFFB8F7FF), Color(0xFF249FEA), Color(0xFF073B83), Color(0xFF06172F))
+                    ),
+                    CircleShape
+                )
+                .border(1.5.dp, Color(0xFF83E9FF), CircleShape)
+        )
+        Box(
+            Modifier.fillMaxWidth(0.98f)
+                .height(size * 0.30f)
+                .rotate(rotation.value)
+                .border(2.dp, Color(0xFF48D9FF), RoundedCornerShape(50))
+        )
+        Box(
+            Modifier.fillMaxWidth(0.92f)
+                .height(size * 0.44f)
+                .rotate(reverseRotation.value)
+                .border(1.5.dp, Color(0xFF9A8CFF), RoundedCornerShape(50))
+        )
+        Box(
+            Modifier.size(size * 0.13f)
+                .background(Color(0xFFE5FCFF), CircleShape)
+        )
     }
 }
 
@@ -625,7 +693,7 @@ fun Jarvis() {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(28.dp)) {
                     Box(contentAlignment = Alignment.Center) {
                         Surface(modifier = Modifier.size(204.dp), shape = CircleShape, color = Color(0x2262E5F2)) {}
-                        Image(painterResource(R.drawable.jarvis_logo), contentDescription = "Icono de JARVIS", modifier = Modifier.size(166.dp))
+                        HolographicOrb(size = 166.dp)
                     }
                     Spacer(Modifier.height(28.dp))
                     Text("J.A.R.V.I.S.", color = Color.White, fontSize = 35.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
