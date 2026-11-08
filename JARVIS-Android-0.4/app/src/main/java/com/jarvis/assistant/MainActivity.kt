@@ -302,6 +302,8 @@ fun Jarvis() {
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
+    var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
+    var localModelStatus by remember { mutableStateOf("Selecciona un archivo GGUF para preparar su importación.") }
 
     // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
     BackHandler(enabled = !showSplash && showSettings) {
@@ -359,6 +361,18 @@ fun Jarvis() {
     val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         reminderPermissionGranted = granted
         if (!granted) codeGuardStatus = "Notificaciones no autorizadas. JARVIS seguirá funcionando; los recordatorios no mostrarán avisos."
+    }
+
+    val localModelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                val selected = LocalModelManager.remember(context, uri)
+                localModel = selected
+                localModelStatus = "Archivo seleccionado: ${selected.displayName}. El motor llama.cpp todavía debe integrarse para poder ejecutarlo."
+            } catch (error: Exception) {
+                localModelStatus = error.message ?: "No se pudo seleccionar el modelo GGUF."
+            }
+        }
     }
 
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -657,6 +671,7 @@ fun Jarvis() {
                     } else {
                         Text(
                             when (expandedSettingsFolder) {
+                                "ai" -> "INTELIGENCIA ARTIFICIAL LOCAL"
                                 "lab" -> "LABORATORIO Y PROYECTOS"
                                 "memory" -> "MEMORIA Y CONOCIMIENTO"
                                 "tools" -> "PERSONALIZACIÓN Y HERRAMIENTAS"
@@ -667,8 +682,46 @@ fun Jarvis() {
                         )
                         Spacer(Modifier.height(12.dp))
                     }
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("✧", "INTELIGENCIA ARTIFICIAL LOCAL", "Preparación de modelos GGUF y llama.cpp", expandedSettingsFolder == "ai", { expandedSettingsFolder = if (expandedSettingsFolder == "ai") "" else "ai" })
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
                     Spacer(Modifier.height(9.dp))
+                    if (expandedSettingsFolder == "ai") {
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("MODELOS LOCALES · GGUF", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text("JARVIS se está preparando para cargar modelos GGUF con llama.cpp. Puedes seleccionar el archivo del modelo que ya tengas en el almacenamiento compartido.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Spacer(Modifier.height(12.dp))
+                            if (localModel != null) {
+                                Text("MODELO SELECCIONADO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(localModel!!.displayName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Ubicación guardada mediante el selector seguro de Android.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
+                                TextButton(onClick = {
+                                    LocalModelManager.clear(context)
+                                    localModel = null
+                                    localModelStatus = "No hay ningún archivo GGUF seleccionado."
+                                }) { Text("Quitar selección", color = Color(0xFFFFA0A0)) }
+                            } else {
+                                Text("Todavía no has seleccionado un archivo GGUF.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
+                            }
+                            Button(onClick = { localModelPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (localModel == null) "Seleccionar archivo GGUF" else "Cambiar archivo GGUF")
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(10.dp)) {
+                                    Text("ESTADO DEL MOTOR", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text("Preparación de selección de archivo completada. llama.cpp aún no está enlazado; el modelo todavía no se puede ejecutar desde JARVIS.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                }
+                            }
+                            if (localModelStatus.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(localModelStatus, color = Color(0xFF9CB4C7), fontSize = 11.sp)
+                            }
+                            Text("Nota: seleccionar un archivo no lo copia ni lo ejecuta. La siguiente etapa añadirá el motor nativo y la carga controlada del modelo.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                        }
+                    }
+                    }
                     if (expandedSettingsFolder == "lab") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
