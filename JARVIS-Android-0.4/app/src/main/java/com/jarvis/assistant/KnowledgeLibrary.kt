@@ -209,7 +209,7 @@ object KnowledgeLibrary {
             }
         }
 
-        val minimumScore = if (questionWords.size == 1) 20 else 25
+        val minimumScore = if (rawQuestionWords.size <= 1) 20 else 25
         return candidates
             .filter { it.score >= minimumScore && it.answer.isNotBlank() }
             .maxWithOrNull(compareBy<Candidate> { it.score }.thenBy { it.priority })
