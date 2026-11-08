@@ -8,18 +8,16 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "com.jarvis.assistant"
-        minSdk = 26
+        minSdk = 28
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        externalNativeBuild {
+            cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=ON") }
+        }
         targetSdk = 35
         versionCode = 39
         versionName = "3.9"
     }
     ndkVersion = "29.0.13113456"
-    defaultConfig {
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
-        externalNativeBuild {
-            cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=ON") }
-        }
-    }
     externalNativeBuild {
         cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" }
     }
