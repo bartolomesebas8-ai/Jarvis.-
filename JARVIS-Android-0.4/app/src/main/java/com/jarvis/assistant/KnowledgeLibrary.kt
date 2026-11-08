@@ -163,11 +163,14 @@ object KnowledgeLibrary {
             runCatching {
                 val array = org.json.JSONArray(memoriesRaw)
                 for (i in 0 until array.length()) {
-                    val item = array.optJSONObject(i) ?: continue
-                    val savedText = item.optString("text", "").trim()
-                    if (savedText.isBlank()) continue
-                    val score = scoreAgainst(savedText)
-                    if (score > 0) candidates.add(Candidate(score + 10, 2, savedText))
+                    val item = array.optJSONObject(i)
+                    if (item != null) {
+                        val savedText = item.optString("text", "").trim()
+                        if (savedText.isNotBlank()) {
+                            val score = scoreAgainst(savedText)
+                            if (score > 0) candidates.add(Candidate(score + 10, 2, savedText))
+                        }
+                    }
                 }
             }
         }
@@ -179,15 +182,17 @@ object KnowledgeLibrary {
                 val array = org.json.JSONArray(historyRaw)
                 var previousUser: String? = null
                 for (i in 0 until array.length()) {
-                    val item = array.optJSONObject(i) ?: continue
-                    val who = item.optString("who", "")
-                    val text = item.optString("text", "").trim()
-                    if (who == "TÚ") {
-                        previousUser = text
-                    } else if (who == "JARVIS" && !previousUser.isNullOrBlank() && text.isNotBlank()) {
-                        val score = scoreAgainst(previousUser!!)
-                        if (score > 0) candidates.add(Candidate(score, 1, text))
-                        previousUser = null
+                    val item = array.optJSONObject(i)
+                    if (item != null) {
+                        val who = item.optString("who", "")
+                        val text = item.optString("text", "").trim()
+                        if (who == "TÚ") {
+                            previousUser = text
+                        } else if (who == "JARVIS" && !previousUser.isNullOrBlank() && text.isNotBlank()) {
+                            val score = scoreAgainst(previousUser.orEmpty())
+                            if (score > 0) candidates.add(Candidate(score, 1, text))
+                            previousUser = null
+                        }
                     }
                 }
             }
