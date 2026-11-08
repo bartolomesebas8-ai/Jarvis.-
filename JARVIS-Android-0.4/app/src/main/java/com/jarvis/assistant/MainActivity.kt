@@ -447,7 +447,48 @@ fun Jarvis() {
             val taskListIntent = lower == "mis tareas" || lower == "listar tareas" || lower == "ver tareas" || lower == "tareas pendientes"
             val taskCompleteIntent = lower.startsWith("completar tarea:") || lower.startsWith("marcar tarea:")
             val taskDeleteIntent = lower.startsWith("eliminar tarea:") || lower.startsWith("borrar tarea:")
-            val reply = if (taskCreateIntent) {
+            val selfReportIntent = lower.contains("dime lo que haces") ||
+                lower.contains("que puedes hacer") ||
+                lower.contains("qué puedes hacer") ||
+                lower.contains("estado de tus programas") ||
+                lower.contains("informe del sistema")
+            val reply = if (selfReportIntent) {
+                buildString {
+                    appendLine("¡Hola! Soy JARVIS. Este es mi informe de estado.")
+                    appendLine()
+                    appendLine("FUNCIONES DISPONIBLES:")
+                    appendLine("• Memoria local: guardar, consultar y organizar recuerdos.")
+                    appendLine("• Biblioteca: importar y buscar documentos.")
+                    appendLine("• Investigación: revisar documentos importados.")
+                    appendLine("• Code Guard: analizar código y mostrar advertencias.")
+                    appendLine("• JavaScript: ejecutar código compatible después de tu confirmación.")
+                    appendLine("• Extensiones: importar y administrar extensiones declarativas.")
+                    appendLine("• Tareas: crear, consultar, completar y eliminar tareas.")
+                    appendLine("• Metas y rutinas: organizar objetivos y hábitos.")
+                    appendLine("• Planificador y temporizador: organizar actividades y sesiones de concentración.")
+                    appendLine("• Seguridad: configurar un PIN local.")
+                    appendLine("• Recordatorios: programar avisos si Android permite las notificaciones.")
+                    appendLine()
+                    appendLine("ESTADO REGISTRADO EN ESTE MOMENTO:")
+                    appendLine("• Recuerdos guardados: ${memories.size}")
+                    appendLine("• Documentos en biblioteca: ${knowledgeDocs.size}")
+                    appendLine("• Espacios de código: ${codeWorkspaces.size}")
+                    appendLine("• Extensiones importadas: ${extensions.size}")
+                    appendLine("• Tareas pendientes: ${tasks.count { !it.completed }}")
+                    appendLine("• Tareas completadas: ${tasks.count { it.completed }}")
+                    appendLine("• Metas: ${goals.size}")
+                    appendLine("• Rutinas: ${routines.size}")
+                    appendLine("• Ejecuciones de código registradas: ${codeRunResults.size}")
+                    appendLine("• Ejecuciones en curso: ${codeRunningIds.size}")
+                    appendLine("• PIN configurado: ${if (pinConfigured) "Sí" else "No"}")
+                    appendLine("• Permiso de notificaciones: ${if (reminderPermissionGranted) "Concedido" else "No concedido"}")
+                    appendLine()
+                    appendLine("LIMITACIONES Y COMPROBACIÓN:")
+                    appendLine("• IA externa Groq/Qwen: no conectada todavía.")
+                    appendLine("• Este informe muestra datos registrados; no ejecuta una prueba técnica de cada módulo.")
+                    appendLine("• No puedo asegurar que todo funcione correctamente sin realizar pruebas.")
+                }
+            } else if (taskCreateIntent) {
                 val title = msg.substringAfter(":").trim()
                 if (title.isBlank()) "Escribe el nombre después de «crear tarea:»." else if (title.length > 160) "El nombre de la tarea no puede superar 160 caracteres." else {
                     val created = JarvisTask(java.util.UUID.randomUUID().toString(), title, "", "Media")
