@@ -328,6 +328,7 @@ fun Jarvis() {
     LaunchedEffect(Unit) { delay(1900); showSplash = false }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    val startupScope = rememberCoroutineScope()
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
@@ -768,7 +769,7 @@ fun Jarvis() {
                     Button(
                         onClick = {
                             if (!startupLoading) {
-                                jarvisScope.launch {
+                                startupScope.launch {
                                     startupLoading = true
                                     startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
                                     try {
@@ -777,12 +778,10 @@ fun Jarvis() {
                                             "jarvis-model.gguf",
                                             "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
                                         )
-                                        llamaReady = true
                                         startupPrefs.edit().putBoolean("qwen_started_once", true).apply()
                                         firstStartRequired = false
                                         startupMessage = "Qwen 3 está listo."
                                     } catch (error: Exception) {
-                                        llamaReady = false
                                         startupMessage = error.message ?: "No se pudo iniciar Qwen 3. Puedes volver a intentarlo."
                                     } finally {
                                         startupLoading = false
