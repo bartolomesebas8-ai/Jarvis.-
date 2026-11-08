@@ -20,7 +20,8 @@ data class CodeGuardReport(
     val findings: List<CodeFinding>,
     val analyzedLines: Int,
     val blockedForExecution: Boolean,
-    val summary: String
+    val summary: String,
+    val confidence: String = "Media"
 )
 
 object CodeGuardAnalyzer {
@@ -31,11 +32,14 @@ object CodeGuardAnalyzer {
             "El archivo supera el límite de análisis de 200 000 caracteres."
         }
 
-        val language = detectLanguage(fileName, source)
+        val detection = detectLanguage(fileName, source)
+        val language = detection.first
+        val confidence = detection.second
         if (language == "Desconocido") {
             return CodeGuardReport(
                 language, emptyList(), source.lines().size, true,
-                "Lenguaje no compatible: el análisis es insuficiente y la ejecución debe permanecer bloqueada."
+                "No pude identificar el lenguaje con suficiente certeza. No se enviará a ningún motor.",
+                confidence
             )
         }
 
@@ -48,21 +52,21 @@ object CodeGuardAnalyzer {
                 findings += CodeFinding(index + 1, risk, id, title, explanation, line.trim().take(220))
             }
 
-            if (Regex("\\b(eval|exec)\\s*\\(").containsMatchIn(normalized)) {
+            if (Regex("\\b(eval|exec|compile)\\s*\\(").containsMatchIn(normalized)) {
                 add(CodeRisk.HIGH, "DYNAMIC_CODE", "Ejecución dinámica",
                     "La línea parece evaluar texto como código. Puede permitir ejecutar contenido no confiable.")
             }
             if (Regex("\\b(runtime\\.getruntime\\(\\)\\.exec|processbuilder)\\b").containsMatchIn(normalized)) {
                 add(CodeRisk.HIGH, "SYSTEM_PROCESS", "Lanzamiento de procesos",
-                    "La línea parece iniciar procesos del sistema. Requiere revisión estricta de argumentos y permisos.")
+                    "La línea parece iniciar procesos del sistema. La ejecución requiere revisión adicional.")
             }
             if (Regex("\\b(delete|unlink|rmtree|remove)\\s*\\(").containsMatchIn(normalized)) {
                 add(CodeRisk.MEDIUM, "FILE_DELETE", "Posible eliminación de archivos",
-                    "La línea parece borrar archivos o directorios. El contexto determina el alcance.")
+                    "La línea parece borrar archivos o directorios. Revisa su alcance.")
             }
             if (Regex("\\b(socket|httpurlconnection|okhttpclient|requests\\.(get|post)|urlopen)\\b").containsMatchIn(normalized)) {
                 add(CodeRisk.MEDIUM, "NETWORK_ACCESS", "Acceso de red",
-                    "La línea parece realizar comunicaciones de red. Deben revisarse destino y datos transmitidos.")
+                    "La línea parece realizar comunicaciones de red.")
             }
             if (Regex("(password|passwd|api[_-]?key|secret|token)").containsMatchIn(normalized)) {
                 add(CodeRisk.MEDIUM, "POSSIBLE_SECRET", "Referencia a credenciales",
@@ -70,51 +74,77 @@ object CodeGuardAnalyzer {
             }
             if (Regex("\\b(base64|frombase64string|b64decode)\\b").containsMatchIn(normalized)) {
                 add(CodeRisk.LOW, "ENCODING", "Codificación de datos",
-                    "La codificación puede ser legítima, pero también ocultar contenido; revisa los datos decodificados sin ejecutarlos.")
+                    "La codificación puede ser legítima, pero conviene revisar el contenido.")
             }
-            if (Regex("\\b(chmod|su\\s|sudo|os\\.system)\\b").containsMatchIn(normalized)) {
+            if (Regex("\\b(chmod|su\\s|sudo|os\\.system|subprocess)\\b").containsMatchIn(normalized)) {
                 add(CodeRisk.HIGH, "PRIVILEGED_OR_SHELL", "Comando de sistema o privilegios",
-                    "La línea parece invocar una shell o cambiar permisos. No se debe ejecutar sin análisis adicional.")
+                    "La línea parece invocar una shell o cambiar permisos.")
+            }
+            if (Regex("\\b(import|from)\\s+(os|sys|subprocess|socket|pathlib|shutil)\\b").containsMatchIn(normalized)) {
+                add(CodeRisk.HIGH, "SENSITIVE_MODULE", "Módulo con acceso al sistema",
+                    "El código parece importar módulos que pueden interactuar con el sistema o archivos.")
+            }
+            if (Regex("\\b(Class\\.forName|classloader|setAccessible|reflect)\\b").containsMatchIn(normalized)) {
+                add(CodeRisk.HIGH, "REFLECTION", "Acceso reflectivo",
+                    "La reflexión puede eludir límites previstos del entorno de ejecución.")
             }
         }
 
-        val critical = findings.any { it.risk == CodeRisk.CRITICAL || it.risk == CodeRisk.HIGH }
+        val blocked = findings.any { it.risk == CodeRisk.CRITICAL || it.risk == CodeRisk.HIGH }
         val summary = when {
-            critical -> "Se encontraron señales de alto riesgo. Revisa estas líneas antes de ejecutar el código."
-            findings.isNotEmpty() -> "Se encontraron patrones que conviene revisar antes de ejecutar el código."
+            blocked -> "Se detectaron señales de alto riesgo. La ejecución queda bloqueada hasta revisar el código."
+            findings.isNotEmpty() -> "Se encontraron patrones que conviene revisar. El análisis no garantiza que el código sea seguro."
             else -> "No se detectaron patrones de riesgo cubiertos por estas reglas. Esto no demuestra que el código sea seguro."
         }
-        return CodeGuardReport(language, findings.distinctBy { Triple(it.line, it.ruleId, it.evidence) },
-            lines.size, true, summary)
+        return CodeGuardReport(
+            language,
+            findings.distinctBy { Triple(it.line, it.ruleId, it.evidence) },
+            lines.size,
+            blocked,
+            summary,
+            confidence
+        )
     }
 
-    private fun detectLanguage(fileName: String, source: String): String {
+    private fun detectLanguage(fileName: String, source: String): Pair<String, String> {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         when (extension) {
-            "py" -> return "Python"
-            "js", "mjs", "cjs" -> return "JavaScript"
-            "kt", "kts" -> return "Kotlin"
-            "java" -> return "Java"
+            "py" -> return "Python" to "Alta (extensión .py)"
+            "js", "mjs", "cjs" -> return "JavaScript" to "Alta (extensión .$extension)"
+            "java" -> return "Java" to "Alta (extensión .java)"
+            "kt", "kts" -> return "Kotlin" to "Alta (extensión .$extension)"
         }
 
-        // File names created by the editor often have no extension. Detect common
-        // JavaScript syntax instead of rejecting valid pasted programs.
         val text = source.trim()
+        if (text.isBlank()) return "Desconocido" to "Nula"
+
+        val pythonSignals = listOf(
+            Regex("(?m)^\\s*def\\s+[A-Za-z_]\\w*\\s*\\("),
+            Regex("(?m)^\\s*(from\\s+[\\w.]+\\s+import|import\\s+[\\w.]+)"),
+            Regex("(?m)^\\s*if\\s+.+:\\s*$"),
+            Regex("(?m)^\\s*print\\s*\\(")
+        ).count { it.containsMatchIn(text) }
+        val javaSignals = listOf(
+            Regex("(?m)^\\s*public\\s+(static\\s+)?class\\s+"),
+            Regex("(?m)^\\s*import\\s+java\\."),
+            Regex("System\\.out\\.(print|println)\\s*\\("),
+            Regex("public\\s+static\\s+void\\s+main\\s*\\(")
+        ).count { it.containsMatchIn(text) }
         val jsSignals = listOf(
             Regex("(?m)^\\s*(const|let|var)\\s+[A-Za-z_$]"),
             Regex("\\bconsole\\s*\\.\\s*(log|info|warn|error)\\s*\\("),
             Regex("\\b(function|async)\\s+[A-Za-z_$][\\w$]*\\s*\\("),
             Regex("=>"),
-            Regex("\\b(JSON|Math|Array|Object|Promise)\\s*\\."),
-            Regex("(?m)^\\s*(if|for|while|switch)\\s*\\(")
-        )
-        val jsMatches = jsSignals.count { it.containsMatchIn(text) }
-        if (jsMatches >= 1 && !text.contains("fun main(") && !Regex("(?m)^\\s*def\\s+").containsMatchIn(text)) {
-            return "JavaScript"
+            Regex("\\b(JSON|Math|Array|Object|Promise)\\s*\\.")
+        ).count { it.containsMatchIn(text) }
+
+        val ranked = listOf("Python" to pythonSignals, "Java" to javaSignals, "JavaScript" to jsSignals)
+            .sortedByDescending { it.second }
+        val best = ranked[0]
+        val second = ranked[1]
+        if (best.second >= 2 && best.second >= second.second + 1) {
+            return best.first to "Media-alta (coincidencia de sintaxis)"
         }
-        if (text.contains("fun main(") || (text.contains("package ") && Regex("\\b(val|var)\\s+").containsMatchIn(text))) return "Kotlin probable"
-        if (Regex("(?m)^\\s*def\\s+").containsMatchIn(text)) return "Python probable"
-        if (Regex("(?m)^\\s*(public\\s+)?class\\s+").containsMatchIn(text) && text.contains("System.out")) return "Java probable"
-        return "Desconocido"
+        return "Desconocido" to "Insuficiente o ambigüa"
     }
 }
