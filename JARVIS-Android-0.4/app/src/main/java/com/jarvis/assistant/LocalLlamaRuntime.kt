@@ -31,9 +31,7 @@ object LocalLlamaRuntime {
     ): String = engineMutex.withLock {
         withContext(Dispatchers.IO) {
             val appContext = context.applicationContext
-            val modelsDir = File(appContext.filesDir, "local_models").apply {
-                if (!exists() && !mkdirs()) throw IllegalStateException("No se pudo crear la carpeta privada del modelo.")
-            }
+            val modelsDir = modelsDirectory(appContext)
             val safeName = displayName.substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
             require(safeName.endsWith(".gguf", ignoreCase = true)) {
                 "El archivo seleccionado no tiene extensión .gguf."
@@ -80,32 +78,66 @@ object LocalLlamaRuntime {
                 "La copia local del modelo no es válida o no se puede leer."
             }
 
-            val engine = AiChat.getInferenceEngine(appContext)
-            val initialState = withTimeout(180_000L) {
-                engine.state.first {
-                    it is InferenceEngine.State.Initialized ||
-                        it is InferenceEngine.State.ModelReady ||
-                        it is InferenceEngine.State.Error
-                }
-            }
-            if (initialState is InferenceEngine.State.Error ||
-                initialState is InferenceEngine.State.ModelReady
-            ) {
-                engine.cleanUp()
-            }
-
-            engine.loadModel(modelFile.absolutePath)
-            try {
-                engine.setSystemPrompt(systemPrompt)
-            } catch (error: Exception) {
-                runCatching { engine.cleanUp() }
-                throw error
-            }
-
-            activeEngine = engine
-            activeModelPath = modelFile.absolutePath
-            "Modelo GGUF cargado en JARVIS: ${modelFile.name} (${modelFile.length() / (1024 * 1024)} MB)."
+            initializeEngine(appContext, modelFile, systemPrompt)
         }
+    }
+
+    suspend fun loadDownloaded(
+        context: Context,
+        modelFile: File,
+        systemPrompt: String
+    ): String = engineMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val appContext = context.applicationContext
+            val expectedDir = modelsDirectory(appContext).canonicalFile
+            val candidate = modelFile.canonicalFile
+            require(candidate.parentFile == expectedDir && candidate.isFile && candidate.canRead()) {
+                "El archivo descargado no está en el almacenamiento privado esperado de JARVIS."
+            }
+            require(candidate.name.endsWith(".gguf", ignoreCase = true) && candidate.length() > 1024L * 1024L) {
+                "El archivo GGUF descargado está incompleto o no es válido."
+            }
+            initializeEngine(appContext, candidate, systemPrompt)
+        }
+    }
+
+    private fun modelsDirectory(context: Context): File =
+        File(context.filesDir, "local_models").apply {
+            if (!exists() && !mkdirs()) {
+                throw IllegalStateException("No se pudo crear la carpeta privada del modelo.")
+            }
+        }
+
+    private suspend fun initializeEngine(
+        appContext: Context,
+        modelFile: File,
+        systemPrompt: String
+    ): String {
+        val engine = AiChat.getInferenceEngine(appContext)
+        val initialState = withTimeout(180_000L) {
+            engine.state.first {
+                it is InferenceEngine.State.Initialized ||
+                    it is InferenceEngine.State.ModelReady ||
+                    it is InferenceEngine.State.Error
+            }
+        }
+        if (initialState is InferenceEngine.State.Error ||
+            initialState is InferenceEngine.State.ModelReady
+        ) {
+            engine.cleanUp()
+        }
+
+        engine.loadModel(modelFile.absolutePath)
+        try {
+            engine.setSystemPrompt(systemPrompt)
+        } catch (error: Exception) {
+            runCatching { engine.cleanUp() }
+            throw error
+        }
+
+        activeEngine = engine
+        activeModelPath = modelFile.absolutePath
+        "Modelo GGUF cargado en JARVIS: ${modelFile.name} (${modelFile.length() / (1024 * 1024)} MB)."
     }
 
     suspend fun generate(prompt: String, maxTokens: Int = 384): String =
