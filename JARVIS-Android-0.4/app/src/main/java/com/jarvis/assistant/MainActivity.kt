@@ -369,6 +369,10 @@ fun Jarvis() {
         }
     }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
+    val startupPrefs = remember { context.getSharedPreferences("jarvis_startup", android.content.Context.MODE_PRIVATE) }
+    var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("qwen_started_once", false)) }
+    var startupLoading by remember { mutableStateOf(false) }
+    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
@@ -741,6 +745,59 @@ fun Jarvis() {
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
                     Text("JARVIS  •  3.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                }
+            }
+        } else if (firstStartRequired) {
+            Box(
+                Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF102B43), bg, Color(0xFF050A12)))),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth().padding(28.dp)
+                ) {
+                    HolographicOrb(size = 150.dp)
+                    Spacer(Modifier.height(24.dp))
+                    Text("J.A.R.V.I.S.", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text("PREPARACIÓN INICIAL", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Text("La primera vez, JARVIS necesita iniciar Qwen 3. Después entrarás directamente al chat.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(20.dp))
+                    Button(
+                        onClick = {
+                            if (!startupLoading) {
+                                jarvisScope.launch {
+                                    startupLoading = true
+                                    startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
+                                    try {
+                                        LocalLlamaRuntime.loadBundled(
+                                            context,
+                                            "jarvis-model.gguf",
+                                            "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
+                                        )
+                                        llamaReady = true
+                                        startupPrefs.edit().putBoolean("qwen_started_once", true).apply()
+                                        firstStartRequired = false
+                                        startupMessage = "Qwen 3 está listo."
+                                    } catch (error: Exception) {
+                                        llamaReady = false
+                                        startupMessage = error.message ?: "No se pudo iniciar Qwen 3. Puedes volver a intentarlo."
+                                    } finally {
+                                        startupLoading = false
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !startupLoading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (startupLoading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text("Iniciar JARVIS")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(startupMessage, color = if (startupLoading) cyan else Color(0xFF9CB4C7), fontSize = 12.sp, textAlign = TextAlign.Center)
                 }
             }
         } else {
