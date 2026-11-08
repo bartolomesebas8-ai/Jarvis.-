@@ -846,7 +846,7 @@ fun Jarvis() {
                                                         localModelStatus = "Preparando el modelo incluido y activando JARVIS…"
                                                         localModelStatus = LocalLlamaRuntime.loadBundled(
                                                             context,
-                                                            Qwen3ModelDownloader.MODEL_FILE_NAME,
+                                                            "jarvis-model.gguf",
                                                             "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Tu identidad y nombre visible son siempre JARVIS. Responde en español cuando el usuario escriba en español. Razona cuidadosamente, explica de forma clara y concisa, utiliza el contexto y los recuerdos que se adjunten, no inventes datos y reconoce tus límites. No afirmes haber realizado acciones que no ejecutaste."
                                                         )
                                                         llamaReady = true
