@@ -13,7 +13,6 @@ import android.os.RemoteException
 import bsh.Interpreter
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
-import java.io.StringWriter
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -90,11 +89,13 @@ class IsolatedCodeService : Service() {
 
     private fun runJava(source: String): String {
         val interpreter = Interpreter()
-        val output = StringWriter()
-        interpreter.setOut(output)
-        interpreter.setErr(output)
+        val bytes = java.io.ByteArrayOutputStream()
+        val stream = java.io.PrintStream(bytes, true, "UTF-8")
+        interpreter.setOut(stream)
+        interpreter.setErr(stream)
         interpreter.eval(source)
-        val text = output.toString().trim()
+        stream.flush()
+        val text = bytes.toString("UTF-8").trim()
         return text.ifBlank { "Interpretación Java completada sin salida." }
     }
 
