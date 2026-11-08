@@ -661,8 +661,10 @@ fun Jarvis() {
                 val documentContext = runCatching {
                     KnowledgeLibrary.search(context, msg, 8).joinToString("\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
                 }.getOrDefault("")
+                val directProfileFact = runCatching { KnowledgeLibrary.answerQuestion(context, msg) }.getOrNull().orEmpty()
                 val enrichedPrompt = buildString {
                     if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\n\n")
+                    if (directProfileFact.isNotBlank()) append("DATO PERSONAL DIRECTO ENCONTRADO (úsalo solo si responde a la pregunta; no inventes datos):\\n").append(directProfileFact).append("\\n\\n")
                     if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\n\n")
                     if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\n\n")
                     append("MENSAJE ACTUAL DEL USUARIO:\\n").append(msg)
