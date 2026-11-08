@@ -15,8 +15,8 @@ android {
             cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=ON") }
         }
         targetSdk = 35
-        versionCode = 42
-        versionName = "3.12"
+        versionCode = 43
+        versionName = "3.13"
     }
     ndkVersion = "29.0.13113456"
     externalNativeBuild {
