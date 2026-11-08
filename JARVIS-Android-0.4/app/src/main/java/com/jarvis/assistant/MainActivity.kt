@@ -667,15 +667,26 @@ fun Jarvis() {
                     if (directProfileFact.isNotBlank()) append("DATO PERSONAL DIRECTO ENCONTRADO (úsalo solo si responde a la pregunta; no inventes datos):\\n").append(directProfileFact).append("\\n\\n")
                     if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\n\n")
                     if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\n\n")
+                    append("INSTRUCCIONES DE CONVERSACIÓN Y MEMORIA:\\n")
+                    append("Conversa con naturalidad y personalidad en todas las preguntas, no solo sobre gustos. Si el dato está en los recuerdos o documentos, úsalo y responde con calidez. Si no encuentras el dato, no inventes ni finjas saberlo: di con naturalidad «La verdad es que no lo sé todavía. ¿Me lo cuentas?» y pregunta solo lo necesario. Cuando el usuario comparta voluntariamente un dato personal estable sobre sí mismo (gustos, preferencias, nombre, ciudad, proyectos, metas, etc.), añade al final una única etiqueta técnica exacta [JARVIS_MEMORY: dato breve y fiel]. No generes esa etiqueta para preguntas, datos de terceros, información sensible, contraseñas, datos financieros, datos médicos, ni información que no sea claramente un hecho personal que el usuario quiera compartir. No menciones la etiqueta en tu respuesta visible. Si no hay un dato personal que guardar, no añadas etiqueta.\\n\\n")
                     append("MENSAJE ACTUAL DEL USUARIO:\\n").append(msg)
                 }
                 jarvisScope.launch {
                     llamaBusy = true
                     try {
-                        val answer = LocalLlamaRuntime.generate(enrichedPrompt)
+                        val rawAnswer = LocalLlamaRuntime.generate(enrichedPrompt)
+                        val memoryMatch = Regex("\\[JARVIS_MEMORY:\\s*(.{3,240}?)\\s*\\]", RegexOption.IGNORE_CASE).find(rawAnswer)
+                        val answer = rawAnswer.replace(Regex("\\s*\\[JARVIS_MEMORY:\\s*.{3,240}?\\s*\\]", RegexOption.IGNORE_CASE), "").trim()
+                        if (memoryMatch != null) {
+                            val fact = memoryMatch.groupValues[1].trim()
+                            if (fact.isNotBlank() && memories.none { it.text.equals(fact, ignoreCase = true) }) {
+                                memories = memories + MemoryItem("Personal", fact)
+                                saveMemories(memories)
+                            }
+                        }
                         val latest = lines.toMutableList()
                         val placeholderIndex = latest.indexOfLast { it.who == "JARVIS" && it.text == thinking.text }
-                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", answer)
+                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", answer.ifBlank { "Cuéntame un poco más para poder ayudarte." })
                         lines = latest
                         saveHistory(context, latest)
                     } catch (error: Exception) {
