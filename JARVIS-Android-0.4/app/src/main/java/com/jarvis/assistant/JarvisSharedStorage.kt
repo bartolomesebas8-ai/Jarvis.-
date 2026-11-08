@@ -29,9 +29,9 @@ object JarvisSharedStorage {
     fun ensureStructure(): File {
         check(hasAccess()) { "JARVIS necesita que autorices «Permitir administrar todos los archivos» en los ajustes de Android." }
         val root = root() ?: error("No se pudo localizar el almacenamiento compartido.")
-        listOf("Memoria", "Historial", "Documentos", "Modelos", "Copias_de_seguridad", "Configuracion")
-            .forEach { File(root, it).mkdirs() }
-        partition(root)
+        listOf("Documentos", "Modelos", "Copias_de_seguridad").forEach { File(root, it).mkdirs() }
+        val data = partition(root)
+        listOf("Memoria", "Historial", "Configuracion").forEach { File(data, it).mkdirs() }
         return root
     }
 
@@ -56,10 +56,12 @@ object JarvisSharedStorage {
             ?.sortedBy { it.name }.orEmpty()
         val current = dirs.lastOrNull() ?: File(root, "Datos_001").apply { mkdirs() }
         val used = current.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-        return if (used >= PARTITION_LIMIT) {
+        val selected = if (used >= PARTITION_LIMIT) {
             val nextNumber = (dirs.size + 1).coerceAtLeast(1)
             File(root, "Datos_" + nextNumber.toString().padStart(3, '0')).apply { mkdirs() }
         } else current
+        listOf("Memoria", "Historial", "Configuracion").forEach { File(selected, it).mkdirs() }
+        return selected
     }
 
     fun saveSnapshot(category: String, filename: String, content: String) {
@@ -71,10 +73,6 @@ object JarvisSharedStorage {
         val folder = File(partition, safeCategory).apply { mkdirs() }
         val target = File(folder, safeName)
         target.writeBytes(bytes)
-        // Mantiene también una copia fácil de encontrar en la carpeta principal.
-        val mirror = File(File(root, safeCategory), safeName)
-        mirror.parentFile?.mkdirs()
-        mirror.writeBytes(bytes)
     }
 
     private fun normalize(value: String): String = Normalizer.normalize(
