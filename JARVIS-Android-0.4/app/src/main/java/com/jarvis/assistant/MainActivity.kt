@@ -372,7 +372,7 @@ fun Jarvis() {
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
-    var localModelStatus by remember { mutableStateOf("Selecciona Qwen3 1.7B o un archivo GGUF para cargarlo con llama.cpp.") }
+    var localModelStatus by remember { mutableStateOf("Selecciona el motor de IA de JARVIS o importa un modelo GGUF compatible.") }
     val jarvisScope = rememberCoroutineScope()
     var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
     var llamaLoading by remember { mutableStateOf(false) }
@@ -636,7 +636,7 @@ fun Jarvis() {
                     ?: if (llamaReady) "__JARVIS_LOCAL_LLM__" else "Recibí tu mensaje y lo guardé en este dispositivo. Carga un modelo GGUF desde Ajustes > Inteligencia Artificial Local para activar las respuestas de IA."
             }
             if (reply == "__JARVIS_LOCAL_LLM__") {
-                val thinking = Line("JARVIS", "Pensando con Qwen3…")
+                val thinking = Line("JARVIS", "JARVIS está pensando…")
                 val updated = lines + Line("TÚ", msg) + thinking
                 lines = updated
                 saveHistory(context, updated)
@@ -666,7 +666,7 @@ fun Jarvis() {
                         val latest = lines.toMutableList()
                         val placeholderIndex = latest.indexOfLast { it.who == "JARVIS" && it.text == thinking.text }
                         val message = error.message ?: "No se pudo generar una respuesta con el modelo local."
-                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", "Error de Qwen3: $message")
+                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", "JARVIS no pudo generar la respuesta: $message")
                         lines = latest
                         saveHistory(context, latest)
                     } finally {
@@ -810,7 +810,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(12.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(12.dp)) {
-                                    Text("MODELO RECOMENDADO · QWEN3 1.7B", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                    Text("MOTOR DE INTELIGENCIA ARTIFICIAL · JARVIS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                                     Spacer(Modifier.height(5.dp))
                                     Text("Q4_K_M · GGUF · ${Qwen3ModelDownloader.MODEL_SIZE_LABEL}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     Text("Descarga manual iniciada por ti. El archivo se guarda en el almacenamiento privado de JARVIS y funciona sin conexión una vez instalado. Se recomienda Wi-Fi y espacio libre adicional.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
@@ -838,21 +838,21 @@ fun Jarvis() {
                                                             Qwen3ModelDownloader.download(context) { progress ->
                                                                 runOnUiThread {
                                                                     qwenDownloadProgress = progress
-                                                                    localModelStatus = "Descargando Qwen3 1.7B: $progress%. Mantén JARVIS abierto y evita interrumpir la conexión."
+                                                                    localModelStatus = "Descargando el motor de IA de JARVIS: $progress%. Mantén la aplicación abierta y evita interrumpir la conexión."
                                                                 }
                                                             }.also { qwenDownloaded = true }
                                                         }
                                                         qwenDownloading = false
-                                                        localModelStatus = "Descarga verificada. Inicializando llama.cpp y cargando Qwen3 1.7B…"
+                                                        localModelStatus = "Descarga verificada. Inicializando el motor de inteligencia artificial de JARVIS…"
                                                         localModelStatus = LocalLlamaRuntime.loadDownloaded(
                                                             context,
                                                             modelFile,
-                                                            "Eres JARVIS, basado en Qwen3 1.7B. Responde en español cuando el usuario escriba en español. Razona cuidadosamente, explica de forma clara y concisa, utiliza el contexto y los recuerdos que se adjunten, no inventes datos y reconoce tus límites. No afirmes haber realizado acciones que no ejecutaste."
+                                                            "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Tu identidad y nombre visible son siempre JARVIS. Responde en español cuando el usuario escriba en español. Razona cuidadosamente, explica de forma clara y concisa, utiliza el contexto y los recuerdos que se adjunten, no inventes datos y reconoce tus límites. No afirmes haber realizado acciones que no ejecutaste."
                                                         )
                                                         llamaReady = true
                                                     } catch (error: Exception) {
                                                         llamaReady = false
-                                                        localModelStatus = error.message ?: "No se pudo descargar o cargar Qwen3 1.7B."
+                                                        localModelStatus = error.message ?: "No se pudo descargar o iniciar el motor de IA de JARVIS."
                                                     } finally {
                                                         qwenDownloading = false
                                                         llamaLoading = false
@@ -865,10 +865,10 @@ fun Jarvis() {
                                     ) {
                                         Text(
                                             when {
-                                                qwenDownloading -> "Descargando Qwen3…"
-                                                llamaLoading -> "Cargando Qwen3…"
-                                                qwenDownloaded -> "Cargar Qwen3 1.7B"
-                                                else -> "Descargar e instalar Qwen3 1.7B"
+                                                qwenDownloading -> "Descargando motor de JARVIS…"
+                                                llamaLoading -> "Iniciando JARVIS…"
+                                                qwenDownloaded -> "Iniciar motor de JARVIS"
+                                                else -> "Instalar inteligencia artificial de JARVIS"
                                             }
                                         )
                                     }
@@ -1305,7 +1305,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                 Spacer(Modifier.height(14.dp))
                                 Text("ESTADO DE IA", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                                 Spacer(Modifier.height(6.dp))
-                                Text("Groq y Qwen todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                                Text("Los servicios externos de inteligencia artificial todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             }
                         }
                     }                    }                } else {
