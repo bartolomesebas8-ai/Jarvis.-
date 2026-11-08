@@ -836,7 +836,7 @@ fun Jarvis() {
                                                             Qwen3ModelDownloader.localFile(context)
                                                         } else {
                                                             Qwen3ModelDownloader.download(context) { progress ->
-                                                                runOnUiThread {
+                                                                android.os.Handler(android.os.Looper.getMainLooper()).post {
                                                                     qwenDownloadProgress = progress
                                                                     localModelStatus = "Descargando el motor de IA de JARVIS: $progress%. Mantén la aplicación abierta y evita interrumpir la conexión."
                                                                 }
