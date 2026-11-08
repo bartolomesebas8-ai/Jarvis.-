@@ -24,6 +24,7 @@ android {
     }
     buildFeatures { compose = true }
     androidResources { noCompress += "gguf" }
+    androidResources { noCompress += "gguf" }
     chaquopy { defaultConfig { version = "3.12" } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
