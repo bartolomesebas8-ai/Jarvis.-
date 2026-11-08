@@ -116,14 +116,14 @@ object KnowledgeLibrary {
         data class Candidate(val key: String, val value: String, val score: Int)
         val candidates = mutableListOf<Candidate>()
 
-        list(context).forEach { document ->
-            val body = runCatching { read(context, document.id) }.getOrNull() ?: return@forEach
-            body.lineSequence().forEach { line ->
+        list(context).forEach documentLoop@ { document ->
+            val body = runCatching { read(context, document.id) }.getOrNull() ?: return@documentLoop
+            body.lineSequence().forEach lineLoop@ { line ->
                 val split = line.split(":", limit = 2)
-                if (split.size != 2) return@forEach
+                if (split.size != 2) return@lineLoop
                 val key = split[0].trim()
                 val value = split[1].trim()
-                if (key.isBlank() || value.isBlank() || key.length > 60) return@forEach
+                if (key.isBlank() || value.isBlank() || key.length > 60) return@lineLoop
                 val normalizedKey = normalize(key)
                 val keyWords = normalizedKey.split(" ").filter { it.isNotBlank() }
                 val keyAliases = aliases[normalizedKey].orEmpty()
