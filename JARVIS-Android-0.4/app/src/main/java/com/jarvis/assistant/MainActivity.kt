@@ -542,7 +542,8 @@ fun Jarvis() {
                     }
                 }
             } else {
-                "Recibí tu mensaje y lo guardé en este dispositivo. La conexión con Groq y el motor Qwen todavía está pendiente."
+                KnowledgeLibrary.answerQuestion(context, msg)
+                    ?: "Recibí tu mensaje y lo guardé en este dispositivo. La conexión con Groq y el motor Qwen todavía está pendiente."
             }
             val updated = lines + Line("TÚ", msg) + Line("JARVIS", reply)
             lines = updated
@@ -580,7 +581,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  3.5", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  3.6", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -616,7 +617,7 @@ fun Jarvis() {
                                     Text("MEMORIA LOCAL ACTIVA", color = Color(0xFFB8C9D8), fontSize = 9.sp, letterSpacing = 0.7.sp)
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text("VERSIÓN 3.5", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
+                                Text("VERSIÓN 3.6", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
                             }
                             if (showSettings) {
                                 TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan, fontSize = 12.sp) }
@@ -803,11 +804,11 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("BIBLIOTECA DE CONOCIMIENTO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Guarda documentos o escribe y pega texto directamente. JARVIS lo conserva en este dispositivo y permite buscarlo sin Internet.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                            Text("Guarda documentos o escribe datos en formato clave: valor, por ejemplo «nombre: Sebastián». Después pregunta en el chat «¿Cuál es mi nombre?» y JARVIS consultará esta Biblioteca automáticamente, sin que tengas que pedir una búsqueda.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
                             Button(onClick = { knowledgePicker.launch(arrayOf("text/plain", "text/markdown", "text/csv", "application/json", "application/xml")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento") }
-                            OutlinedTextField(value = knowledgeManualText, onValueChange = { if (it.length <= 512 * 1024) knowledgeManualText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("O escribe/pega texto aquí") }, minLines = 4, maxLines = 8)
+                            OutlinedTextField(value = knowledgeManualText, onValueChange = { if (it.length <= 512 * 1024) knowledgeManualText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Datos: nombre: Sebastián") }, minLines = 4, maxLines = 8)
                             Button(onClick = { try { require(knowledgeManualText.isNotBlank()) { "Escribe o pega texto antes de guardarlo." }; val added = KnowledgeLibrary.import(context, "nota-manual-" + System.currentTimeMillis() + ".txt", java.io.ByteArrayInputStream(knowledgeManualText.toByteArray(Charsets.UTF_8))); knowledgeDocs = KnowledgeLibrary.list(context); knowledgeManualText = ""; knowledgeStatus = "Texto guardado: " + added.name; knowledgeResults = emptyList() } catch (error: Exception) { knowledgeStatus = error.message ?: "No se pudo guardar el texto." } }, enabled = knowledgeManualText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar texto en Biblioteca") }
                             if (knowledgeStatus.isNotBlank()) {
                                 Spacer(Modifier.height(6.dp))
