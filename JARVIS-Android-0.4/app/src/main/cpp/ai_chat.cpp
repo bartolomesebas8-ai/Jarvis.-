@@ -28,7 +28,8 @@ constexpr int   N_THREADS_MIN           = 2;
 constexpr int   N_THREADS_MAX           = 4;
 constexpr int   N_THREADS_HEADROOM      = 2;
 
-// A 4K context keeps memory use more predictable on phones while preserving useful chat history.\nconstexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
+// A 4K context keeps memory use more predictable on phones while preserving useful chat history.
+constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 256;
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.7f;
