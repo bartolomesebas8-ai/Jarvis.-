@@ -667,7 +667,7 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(6.dp))
-                            Text("Aquí es donde pegas el código. No necesitas escribir un título: JARVIS asignará un nombre automáticamente. Para empezar, carga la prueba de diagnóstico o pega tu propio JavaScript y pulsa Guardar y ejecutar.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("Pega tu JavaScript o carga la prueba de diagnóstico. Pulsa Guardar y ejecutar; JARVIS guardará el espacio y te pedirá confirmar antes de ejecutarlo.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Spacer(Modifier.height(10.dp))
                             Text("1. CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código") }, placeholder = { Text("El código aparecerá aquí…") }, minLines = 7, maxLines = 12)
@@ -696,13 +696,15 @@ fun Jarvis() {
                             Button(onClick = {
                                 try {
                                     require(codeWorkspaceSource.isNotBlank()) { "Pega código o carga la prueba de diagnóstico." }
+                                    require(codeWorkspaceSource.length <= 50000) { "El límite del motor JavaScript es 50 KB por ejecución." }
                                     val baseName = "Código " + (codeWorkspaces.size + 1)
                                     val existing = codeWorkspaces.firstOrNull { it.name == baseName }
                                     val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), baseName, codeWorkspaceSource)
-                                    codeWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }
-                                    CodeWorkspaces.save(context, codeWorkspaces)
-                                    codeWorkspaceSource = ""
-                                    codeGuardStatus = "Guardado. Busca " + baseName + " abajo y pulsa Ejecutar."
+                                    val updatedWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }
+                                    CodeWorkspaces.save(context, updatedWorkspaces)
+                                    codeWorkspaces = updatedWorkspaces
+                                    codeGuardStatus = "Código guardado. Revisa la confirmación para ejecutarlo."
+                                    pendingCodeRun = item
                                 } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el código." }
                             }, enabled = codeWorkspaceSource.isNotBlank() && codeWorkspaces.size < 20, modifier = Modifier.fillMaxWidth()) { Text("Guardar código") }
                             Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("O importar un archivo") }
@@ -729,7 +731,7 @@ fun Jarvis() {
                                         Spacer(Modifier.height(6.dp))
                                         Text(result.output, color = if (result.success) Color(0xFF9FE6B8) else Color(0xFFFFB4A2), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         if (result.explanation.isNotBlank()) {
-                                            TextButton(onClick = { codeRunDetails = if (workspace.id in codeRunDetails) codeRunDetails - workspace.id else codeRunDetails + workspace.id }) { Text(if (workspace.id in codeRunDetails) "Ocultar explicación" else "¿Quieres saber por qué?", color = cyan, fontSize = 11.sp) }
+                                            TextButton(onClick = { codeRunDetails = if (workspace.id in codeRunDetails) codeRunDetails - workspace.id else codeRunDetails + workspace.id }) { Text(if (workspace.id in codeRunDetails) "Ocultar resultado" else "Ver resultado", color = cyan, fontSize = 11.sp) }
                                             if (workspace.id in codeRunDetails) Text(result.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
                                         }
                                     }
@@ -1094,7 +1096,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 3.0 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 3.3 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
@@ -1313,7 +1315,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             JavaScriptRunner.run(context, candidate.source) { result ->
                                 codeRunResults = codeRunResults + (candidate.id to result)
                                 codeRunningIds = codeRunningIds - candidate.id
-                                codeRunDetails = codeRunDetails - candidate.id
+                                codeRunDetails = codeRunDetails + candidate.id
                             }
                         }
                     ) { Text("Confirmar") }
