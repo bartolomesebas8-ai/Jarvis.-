@@ -9,7 +9,15 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import java.io.ByteArrayInputStream
 
-data class CodeRunResult(val success: Boolean, val output: String, val explanation: String)
+data class CodeRunResult(
+    val success: Boolean,
+    val output: String,
+    val explanation: String,
+    val language: String = "JavaScript",
+    val engine: String = "WebView restringido",
+    val checks: String = "Ejecución JavaScript con CSP sin red, sin acceso a archivos y sin permisos del teléfono.",
+    val durationMs: Long = 0L
+)
 
 object JavaScriptRunner {
     fun run(context: Context, source: String, callback: (CodeRunResult) -> Unit) {
@@ -22,13 +30,14 @@ object JavaScriptRunner {
                 callback(CodeRunResult(false, "NO FUNCIONA", "El límite de esta versión es 50 KB por ejecución."))
                 return@post
             }
+            val startedAt = android.os.SystemClock.elapsedRealtime()
             val web = WebView(context)
             var finished = false
             fun finish(result: CodeRunResult) {
                 if (finished) return
                 finished = true
                 runCatching { web.stopLoading(); web.destroy() }
-                callback(result)
+                callback(result.copy(durationMs = android.os.SystemClock.elapsedRealtime() - startedAt))
             }
             web.settings.javaScriptEnabled = true
             web.settings.setGeolocationEnabled(false)
