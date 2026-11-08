@@ -18,6 +18,16 @@ set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL ON CACHE BOOL "" FORCE)
 set(GGML_CPU_ALL_VARIANTS ON CACHE BOOL "" FORCE)
 
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    set(GGML_SYSTEM_ARCH "ARM")
+    set(GGML_CPU_KLEIDIAI ON CACHE BOOL "" FORCE)
+elseif(ANDROID_ABI STREQUAL "x86_64")
+    set(GGML_SYSTEM_ARCH "x86")
+    set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
+else()
+    message(FATAL_ERROR "Unsupported Android ABI: ${ANDROID_ABI}")
+endif()
+
 FetchContent_Declare(
     llama_cpp
     GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
@@ -27,6 +37,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(llama_cpp)
 
 add_library(ai-chat SHARED ai_chat.cpp)
+target_compile_definitions(ai-chat PRIVATE
+    GGML_SYSTEM_ARCH=${GGML_SYSTEM_ARCH}
+    GGML_CPU_KLEIDIAI=$<BOOL:${GGML_CPU_KLEIDIAI}>
+    GGML_OPENMP=0
+)
 target_include_directories(ai-chat PRIVATE
     ${llama_cpp_SOURCE_DIR}
     ${llama_cpp_SOURCE_DIR}/common
