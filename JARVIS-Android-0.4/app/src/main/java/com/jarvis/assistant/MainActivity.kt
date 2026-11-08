@@ -372,11 +372,14 @@ fun Jarvis() {
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
-    var localModelStatus by remember { mutableStateOf("Selecciona un archivo GGUF para cargarlo con llama.cpp.") }
+    var localModelStatus by remember { mutableStateOf("Selecciona Qwen3 1.7B o un archivo GGUF para cargarlo con llama.cpp.") }
     val jarvisScope = rememberCoroutineScope()
     var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
     var llamaLoading by remember { mutableStateOf(false) }
     var llamaBusy by remember { mutableStateOf(false) }
+    var qwenDownloaded by remember { mutableStateOf(Qwen3ModelDownloader.isDownloaded(context)) }
+    var qwenDownloading by remember { mutableStateOf(false) }
+    var qwenDownloadProgress by remember { mutableIntStateOf(0) }
 
     // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
     BackHandler(enabled = !showSplash && showSettings) {
@@ -803,7 +806,74 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("MODELOS LOCALES · GGUF", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(8.dp))
-                            Text("JARVIS utiliza llama.cpp para ejecutar modelos GGUF localmente. Selecciona el archivo y cárgalo; la primera importación copia el modelo al almacenamiento privado de JARVIS.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("JARVIS utiliza llama.cpp para ejecutar modelos GGUF localmente. Puedes instalar el modelo recomendado directamente o importar otro archivo compatible.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text("MODELO RECOMENDADO · QWEN3 1.7B", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                    Spacer(Modifier.height(5.dp))
+                                    Text("Q4_K_M · GGUF · ${Qwen3ModelDownloader.MODEL_SIZE_LABEL}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Descarga manual iniciada por ti. El archivo se guarda en el almacenamiento privado de JARVIS y funciona sin conexión una vez instalado. Se recomienda Wi-Fi y espacio libre adicional.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
+                                    if (qwenDownloading) {
+                                        Spacer(Modifier.height(8.dp))
+                                        LinearProgressIndicator(
+                                            progress = { qwenDownloadProgress / 100f },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = cyan
+                                        )
+                                        Text("Descargando: $qwenDownloadProgress%", color = cyan, fontSize = 11.sp)
+                                    }
+                                    Spacer(Modifier.height(10.dp))
+                                    Button(
+                                        onClick = {
+                                            if (!qwenDownloading && !llamaLoading && !llamaBusy) {
+                                                jarvisScope.launch {
+                                                    qwenDownloading = !qwenDownloaded
+                                                    llamaLoading = true
+                                                    qwenDownloadProgress = if (qwenDownloaded) 100 else 0
+                                                    try {
+                                                        val modelFile = if (qwenDownloaded) {
+                                                            Qwen3ModelDownloader.localFile(context)
+                                                        } else {
+                                                            Qwen3ModelDownloader.download(context) { progress ->
+                                                                runOnUiThread {
+                                                                    qwenDownloadProgress = progress
+                                                                    localModelStatus = "Descargando Qwen3 1.7B: $progress%. Mantén JARVIS abierto y evita interrumpir la conexión."
+                                                                }
+                                                            }.also { qwenDownloaded = true }
+                                                        }
+                                                        qwenDownloading = false
+                                                        localModelStatus = "Descarga verificada. Inicializando llama.cpp y cargando Qwen3 1.7B…"
+                                                        localModelStatus = LocalLlamaRuntime.loadDownloaded(
+                                                            context,
+                                                            modelFile,
+                                                            "Eres JARVIS, basado en Qwen3 1.7B. Responde en español cuando el usuario escriba en español. Razona cuidadosamente, explica de forma clara y concisa, utiliza el contexto y los recuerdos que se adjunten, no inventes datos y reconoce tus límites. No afirmes haber realizado acciones que no ejecutaste."
+                                                        )
+                                                        llamaReady = true
+                                                    } catch (error: Exception) {
+                                                        llamaReady = false
+                                                        localModelStatus = error.message ?: "No se pudo descargar o cargar Qwen3 1.7B."
+                                                    } finally {
+                                                        qwenDownloading = false
+                                                        llamaLoading = false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        enabled = !qwenDownloading && !llamaLoading && !llamaBusy,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            when {
+                                                qwenDownloading -> "Descargando Qwen3…"
+                                                llamaLoading -> "Cargando Qwen3…"
+                                                qwenDownloaded -> "Cargar Qwen3 1.7B"
+                                                else -> "Descargar e instalar Qwen3 1.7B"
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(Modifier.height(12.dp))
                             if (localModel != null) {
                                 Text("MODELO SELECCIONADO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
