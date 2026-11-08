@@ -1276,7 +1276,6 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                             }
                         }
                     }
-                    }
 
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
                     if (expandedSettingsFolder == "security") {
