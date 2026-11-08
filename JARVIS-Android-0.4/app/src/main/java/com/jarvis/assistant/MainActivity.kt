@@ -2,6 +2,7 @@ package com.jarvis.assistant
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -301,6 +302,11 @@ fun Jarvis() {
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
+
+    // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
+    BackHandler(enabled = !showSplash && showSettings) {
+        if (expandedSettingsFolder.isNotBlank()) expandedSettingsFolder = "" else showSettings = false
+    }
     var showPinSetup by remember { mutableStateOf(false) }
     var pinCurrent by remember { mutableStateOf("") }
     var pinFirst by remember { mutableStateOf("") }
@@ -574,7 +580,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  3.0", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  3.5", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -610,7 +616,7 @@ fun Jarvis() {
                                     Text("MEMORIA LOCAL ACTIVA", color = Color(0xFFB8C9D8), fontSize = 9.sp, letterSpacing = 0.7.sp)
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text("VERSIÓN 3.0", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
+                                Text("VERSIÓN 3.5", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
                             }
                             if (showSettings) {
                                 TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan, fontSize = 12.sp) }
@@ -706,7 +712,7 @@ fun Jarvis() {
                                     codeGuardStatus = "Código guardado. Revisa la confirmación para ejecutarlo."
                                     pendingCodeRun = item
                                 } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el código." }
-                            }, enabled = codeWorkspaceSource.isNotBlank() && codeWorkspaces.size < 20, modifier = Modifier.fillMaxWidth()) { Text("Guardar código") }
+                            }, enabled = codeWorkspaceSource.isNotBlank() && codeWorkspaces.size < 20, modifier = Modifier.fillMaxWidth()) { Text("Guardar y ejecutar") }
                             Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("O importar un archivo") }
                             Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo como espacio separado") }
                             if (codeGuardStatus.isNotBlank()) Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
@@ -724,7 +730,16 @@ fun Jarvis() {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         TextButton(onClick = { codeWorkspaceName = workspace.name; codeWorkspaceSource = workspace.source }) { Text("Editar", color = cyan) }
                                         TextButton(onClick = { pendingCodeRun = workspace }) { Text(if (workspace.id in codeRunningIds) "Ejecutando…" else "Ejecutar", color = Color(0xFF9FE6B8)) }
-                                        TextButton(onClick = { codeWorkspaceReports = codeWorkspaceReports + (workspace.id to CodeGuardAnalyzer.analyze(workspace.name, workspace.source)) }) { Text("Analizar", color = cyan) }
+                                        TextButton(onClick = {
+                                            try {
+                                                val report = CodeGuardAnalyzer.analyze(workspace.name, workspace.source)
+                                                codeWorkspaceReports = codeWorkspaceReports + (workspace.id to report)
+                                                codeGuardStatus = "Análisis terminado: ${report.language}, ${report.analyzedLines} líneas revisadas."
+                                            } catch (error: Exception) {
+                                                codeGuardStatus = "Error al analizar: ${error.message ?: "no se pudo completar la revisión"}"
+                                                codeWorkspaceReports = codeWorkspaceReports - workspace.id
+                                            }
+                                        }) { Text("Analizar", color = cyan) }
                                         TextButton(onClick = { codeWorkspaces = codeWorkspaces.filterNot { it.id == workspace.id }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceReports = codeWorkspaceReports - workspace.id; if (selectedCodeA == workspace.id) selectedCodeA = ""; if (selectedCodeB == workspace.id) selectedCodeB = "" }) { Text("Eliminar", color = Color(0xFFFF9B9B)) }
                                     }
                                     codeRunResults[workspace.id]?.let { result ->
