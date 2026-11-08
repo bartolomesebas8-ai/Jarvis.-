@@ -22,8 +22,19 @@ object KnowledgeLibrary {
     private const val MAX_TOTAL_BYTES = 20L * 1024 * 1024
     private val allowedExtensions = setOf("txt", "md", "json", "xml", "csv")
 
-    private fun directory(context: Context): File =
-        File(context.filesDir, "jarvis_knowledge").apply { mkdirs() }
+    private fun directory(context: Context): File {
+        val legacy = File(context.filesDir, "jarvis_knowledge")
+        if (JarvisSharedStorage.hasAccess()) {
+            val shared = File(JarvisSharedStorage.ensureStructure(), "Documentos/Biblioteca").apply { mkdirs() }
+            // Migra los documentos existentes sin borrar el original.
+            legacy.listFiles()?.filter { it.isFile }?.forEach { source ->
+                val target = File(shared, source.name)
+                if (!target.exists()) runCatching { source.copyTo(target, overwrite = false) }
+            }
+            return shared
+        }
+        return legacy.apply { mkdirs() }
+    }
 
     fun import(context: Context, displayName: String, input: InputStream): KnowledgeDocument {
         val safeName = displayName.substringAfterLast('/').substringAfterLast('\\').take(100)
