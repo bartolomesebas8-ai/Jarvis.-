@@ -97,7 +97,10 @@ object CodeGuardAnalyzer {
             else -> when {
                 source.contains("fun main(") || source.contains("package ") && source.contains("val ") -> "Kotlin probable"
                 source.contains("def ") && source.contains(":") -> "Python probable"
-                source.contains("function ") || source.contains("=>") -> "JavaScript probable"
+                source.contains("function ") || source.contains("=>") ||
+                    Regex("\\b(console\\s*\\.\\s*(log|info|warn|error)|const|let|var)\\b").containsMatchIn(source) ||
+                    Regex("\\bJSON\\s*\\.\\s*(parse|stringify)\\b").containsMatchIn(source) ->
+                    "JavaScript probable"
                 else -> "Desconocido"
             }
         }
