@@ -114,8 +114,8 @@ object KnowledgeLibrary {
             "gusta" to setOf("gustan", "favorito", "favorita", "prefiero", "prefieres"),
             "gustan" to setOf("gusta", "favorito", "favorita", "prefiero"),
             "prefiero" to setOf("gusta", "gustan", "favorito", "favorita"),
-            "vivo" to setOf("vives", "resido", "resides", "vivienda", "casa"),
-            "vives" to setOf("vivo", "resido", "resides", "vivienda", "casa")
+            "vivo" to setOf("vives", "resido", "resides", "vivienda", "casa", "ciudad", "residencia"),
+            "vives" to setOf("vivo", "resido", "resides", "vivienda", "casa", "ciudad", "residencia")
         )
         val normalizedQuestion = normalize(question)
         val questionWords = normalizedQuestion.split(" ")
