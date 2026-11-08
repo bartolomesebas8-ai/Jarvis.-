@@ -39,6 +39,7 @@ import android.util.Base64
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -303,7 +304,11 @@ fun Jarvis() {
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
-    var localModelStatus by remember { mutableStateOf("Selecciona un archivo GGUF para preparar su importación.") }
+    var localModelStatus by remember { mutableStateOf("Selecciona un archivo GGUF para cargarlo con llama.cpp.") }
+    val jarvisScope = rememberCoroutineScope()
+    var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
+    var llamaLoading by remember { mutableStateOf(false) }
+    var llamaBusy by remember { mutableStateOf(false) }
 
     // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
     BackHandler(enabled = !showSplash && showSettings) {
@@ -368,7 +373,7 @@ fun Jarvis() {
             try {
                 val selected = LocalModelManager.remember(context, uri)
                 localModel = selected
-                localModelStatus = "Archivo seleccionado: ${selected.displayName}. El motor llama.cpp todavía debe integrarse para poder ejecutarlo."
+                localModelStatus = "Archivo seleccionado: ${selected.displayName}. Pulsa «Cargar modelo en JARVIS» para importarlo y abrirlo."
             } catch (error: Exception) {
                 localModelStatus = error.message ?: "No se pudo seleccionar el modelo GGUF."
             }
@@ -557,13 +562,53 @@ fun Jarvis() {
                 }
             } else {
                 KnowledgeLibrary.answerQuestion(context, msg)
-                    ?: "Recibí tu mensaje y lo guardé en este dispositivo. La conexión con Groq y el motor Qwen todavía está pendiente."
+                    ?: if (llamaReady) "__JARVIS_LOCAL_LLM__" else "Recibí tu mensaje y lo guardé en este dispositivo. Carga un modelo GGUF desde Ajustes > Inteligencia Artificial Local para activar las respuestas de IA."
             }
-            val updated = lines + Line("TÚ", msg) + Line("JARVIS", reply)
-            lines = updated
-            saveHistory(context, updated)
-            input = ""
-            keyboard?.hide()
+            if (reply == "__JARVIS_LOCAL_LLM__") {
+                val thinking = Line("JARVIS", "Pensando con Qwen3…")
+                val updated = lines + Line("TÚ", msg) + thinking
+                lines = updated
+                saveHistory(context, updated)
+                input = ""
+                keyboard?.hide()
+                val recentContext = lines.dropLast(2).takeLast(8).joinToString("\\n") { "${it.who}: ${it.text}".take(700) }
+                val memoryContext = memories.takeLast(18).joinToString("\\n") { "• ${it.category}: ${it.text}".take(500) }
+                val documentContext = runCatching {
+                    KnowledgeLibrary.search(context, msg, 3).joinToString("\\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
+                }.getOrDefault("")
+                val enrichedPrompt = buildString {
+                    if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\\n\\n")
+                    if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\\n\\n")
+                    if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\\n\\n")
+                    append("MENSAJE ACTUAL DEL USUARIO:\\n").append(msg)
+                }
+                jarvisScope.launch {
+                    llamaBusy = true
+                    try {
+                        val answer = LocalLlamaRuntime.generate(enrichedPrompt)
+                        val latest = lines.toMutableList()
+                        val placeholderIndex = latest.indexOfLast { it.who == "JARVIS" && it.text == thinking.text }
+                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", answer)
+                        lines = latest
+                        saveHistory(context, latest)
+                    } catch (error: Exception) {
+                        val latest = lines.toMutableList()
+                        val placeholderIndex = latest.indexOfLast { it.who == "JARVIS" && it.text == thinking.text }
+                        val message = error.message ?: "No se pudo generar una respuesta con el modelo local."
+                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", "Error de Qwen3: $message")
+                        lines = latest
+                        saveHistory(context, latest)
+                    } finally {
+                        llamaBusy = false
+                    }
+                }
+            } else {
+                val updated = lines + Line("TÚ", msg) + Line("JARVIS", reply)
+                lines = updated
+                saveHistory(context, updated)
+                input = ""
+                keyboard?.hide()
+            }
         }
     }
 
@@ -690,7 +735,7 @@ fun Jarvis() {
                         Column(Modifier.padding(16.dp)) {
                             Text("MODELOS LOCALES · GGUF", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             Spacer(Modifier.height(8.dp))
-                            Text("JARVIS se está preparando para cargar modelos GGUF con llama.cpp. Puedes seleccionar el archivo del modelo que ya tengas en el almacenamiento compartido.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
+                            Text("JARVIS utiliza llama.cpp para ejecutar modelos GGUF localmente. Selecciona el archivo y cárgalo; la primera importación copia el modelo al almacenamiento privado de JARVIS.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Spacer(Modifier.height(12.dp))
                             if (localModel != null) {
                                 Text("MODELO SELECCIONADO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -708,17 +753,47 @@ fun Jarvis() {
                                 Text(if (localModel == null) "Seleccionar archivo GGUF" else "Cambiar archivo GGUF")
                             }
                             Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    val selected = localModel
+                                    if (selected != null && !llamaLoading) {
+                                        jarvisScope.launch {
+                                            llamaLoading = true
+                                            localModelStatus = "Preparando el modelo GGUF y cargando llama.cpp. La primera carga puede tardar."
+                                            try {
+                                                localModelStatus = LocalLlamaRuntime.load(
+                                                    context,
+                                                    selected.uri,
+                                                    selected.displayName,
+                                                    "Eres JARVIS, un asistente local útil, claro y honesto. Responde en español cuando el usuario escriba en español. Usa los recuerdos y el contexto que acompañan cada mensaje, no inventes datos y reconoce cuando no sabes algo. Mantén las respuestas naturales, útiles y respetuosas."
+                                                )
+                                                llamaReady = true
+                                            } catch (error: Exception) {
+                                                llamaReady = false
+                                                localModelStatus = error.message ?: "No se pudo cargar el modelo GGUF."
+                                            } finally {
+                                                llamaLoading = false
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = localModel != null && !llamaLoading,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(if (llamaLoading) "Cargando modelo…" else if (llamaReady) "Volver a cargar modelo" else "Cargar modelo en JARVIS")
+                            }
+                            Spacer(Modifier.height(8.dp))
                             Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(10.dp)) {
                                     Text("ESTADO DEL MOTOR", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text("Preparación de selección de archivo completada. llama.cpp aún no está enlazado; el modelo todavía no se puede ejecutar desde JARVIS.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                    Text(if (llamaReady) "llama.cpp está cargado y el modelo local está listo para responder en el chat." else "Motor nativo llama.cpp integrado. Selecciona un GGUF y pulsa Cargar modelo en JARVIS.", color = if (llamaReady) Color(0xFF8BE0A4) else Color(0xFFFFD28A), fontSize = 12.sp)
                                 }
                             }
                             if (localModelStatus.isNotBlank()) {
                                 Spacer(Modifier.height(8.dp))
                                 Text(localModelStatus, color = Color(0xFF9CB4C7), fontSize = 11.sp)
                             }
-                            Text("Nota: seleccionar un archivo no lo copia ni lo ejecuta. La siguiente etapa añadirá el motor nativo y la carga controlada del modelo.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                            Text("La primera carga copia el archivo a los datos privados de JARVIS y necesita espacio libre adicional. El modelo original de PocketPal no se modifica. La inferencia se ejecuta localmente.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
                         }
                     }
                     }
