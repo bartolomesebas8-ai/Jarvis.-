@@ -454,9 +454,22 @@ fun Jarvis() {
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             try {
+                val displayName = runCatching {
+                    context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            if (index >= 0) cursor.getString(index) else null
+                        } else null
+                    }
+                }.getOrNull()?.takeIf { it.isNotBlank() }
+                    ?: uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+                    ?: "documento.txt"
+                val extension = displayName.substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
+                require(extension in setOf("txt", "md", "json", "xml", "csv")) {
+                    "El archivo «$displayName» no tiene un formato compatible. Elige un archivo que termine en .txt, .md, .json, .xml o .csv."
+                }
                 val stream = context.contentResolver.openInputStream(uri)
-                    ?: throw IllegalArgumentException("No se pudo abrir el archivo.")
-                val displayName = uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "documento.txt"
+                    ?: throw IllegalArgumentException("Android no permitió abrir el archivo seleccionado.")
                 val added = KnowledgeLibrary.import(context, displayName, stream)
                 knowledgeDocs = KnowledgeLibrary.list(context)
                 knowledgeStatus = "Documento importado: " + added.name
@@ -1079,7 +1092,7 @@ fun Jarvis() {
                             Text("Guarda documentos o escribe datos en formato clave: valor, por ejemplo «nombre: Sebastián». Después pregunta en el chat «¿Cuál es mi nombre?» y JARVIS consultará esta Biblioteca automáticamente, sin que tengas que pedir una búsqueda.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
                             Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
-                            Button(onClick = { knowledgePicker.launch(arrayOf("text/plain", "text/markdown", "text/csv", "application/json", "application/xml")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento") }
+                            Button(onClick = { knowledgePicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento TXT u otro compatible") }
                             OutlinedTextField(value = knowledgeManualText, onValueChange = { if (it.length <= 512 * 1024) knowledgeManualText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Datos: nombre: Sebastián") }, minLines = 4, maxLines = 8)
                             Button(onClick = { try { require(knowledgeManualText.isNotBlank()) { "Escribe o pega texto antes de guardarlo." }; val added = KnowledgeLibrary.import(context, "nota-manual-" + System.currentTimeMillis() + ".txt", java.io.ByteArrayInputStream(knowledgeManualText.toByteArray(Charsets.UTF_8))); knowledgeDocs = KnowledgeLibrary.list(context); knowledgeManualText = ""; knowledgeStatus = "Texto guardado: " + added.name; knowledgeResults = emptyList() } catch (error: Exception) { knowledgeStatus = error.message ?: "No se pudo guardar el texto." } }, enabled = knowledgeManualText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar texto en Biblioteca") }
                             if (knowledgeStatus.isNotBlank()) {
