@@ -659,7 +659,7 @@ fun Jarvis() {
                 val recentContext = lines.dropLast(2).takeLast(8).joinToString("\n") { "${it.who}: ${it.text}".take(700) }
                 val memoryContext = memories.takeLast(18).joinToString("\n") { "• ${it.category}: ${it.text}".take(500) }
                 val documentContext = runCatching {
-                    KnowledgeLibrary.search(context, msg, 3).joinToString("\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
+                    KnowledgeLibrary.search(context, msg, 8).joinToString("\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
                 }.getOrDefault("")
                 val enrichedPrompt = buildString {
                     if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\n\n")
@@ -1091,7 +1091,7 @@ fun Jarvis() {
                             Spacer(Modifier.height(6.dp))
                             Text("Guarda documentos o escribe datos en formato clave: valor, por ejemplo «nombre: Sebastián». Después pregunta en el chat «¿Cuál es mi nombre?» y JARVIS consultará esta Biblioteca automáticamente, sin que tengas que pedir una búsqueda.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             Spacer(Modifier.height(8.dp))
-                            Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Máximo 512 KB por archivo y 5 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
+                            Text("Formatos: TXT, MD, JSON, XML y CSV. Los archivos de código se importan únicamente desde Code Guard. Puedes agregar varios documentos. Máximo 2 MB por archivo y 20 MB en total.", color = Color(0xFF8FAABD), fontSize = 11.sp)
                             Button(onClick = { knowledgePicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar documento TXT u otro compatible") }
                             OutlinedTextField(value = knowledgeManualText, onValueChange = { if (it.length <= 512 * 1024) knowledgeManualText = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Datos: nombre: Sebastián") }, minLines = 4, maxLines = 8)
                             Button(onClick = { try { require(knowledgeManualText.isNotBlank()) { "Escribe o pega texto antes de guardarlo." }; val added = KnowledgeLibrary.import(context, "nota-manual-" + System.currentTimeMillis() + ".txt", java.io.ByteArrayInputStream(knowledgeManualText.toByteArray(Charsets.UTF_8))); knowledgeDocs = KnowledgeLibrary.list(context); knowledgeManualText = ""; knowledgeStatus = "Texto guardado: " + added.name; knowledgeResults = emptyList() } catch (error: Exception) { knowledgeStatus = error.message ?: "No se pudo guardar el texto." } }, enabled = knowledgeManualText.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar texto en Biblioteca") }
