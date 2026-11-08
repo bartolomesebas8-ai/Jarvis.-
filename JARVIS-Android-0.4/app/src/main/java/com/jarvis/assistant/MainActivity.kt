@@ -1282,7 +1282,8 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                 Text("Los servicios externos de inteligencia artificial todavía no están conectados a esta versión.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
                             }
                         }
-                    }                    }                } else {
+                    }
+                } else {
                     Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Text("Tu espacio personal · Los mensajes se guardan en este dispositivo", color = Color(0xFF8FAABD), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp))
                     }
