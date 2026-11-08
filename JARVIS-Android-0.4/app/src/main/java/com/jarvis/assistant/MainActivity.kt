@@ -904,12 +904,6 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                     Spacer(Modifier.height(12.dp))
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
-                                                Spacer(Modifier.height(12.dp))
-                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                                                Spacer(Modifier.height(12.dp))
-                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
                             Text("RUTINAS Y HÁBITOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Construye constancia con actividades diarias o semanales. Tu historial se guarda en este dispositivo.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Button(onClick = { routineTitle = ""; routineCadence = "Diaria"; showRoutineDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva rutina") }
@@ -922,10 +916,18 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                 Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(10.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Column(Modifier.weight(1f)) { Text(routine.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(routine.cadence + " · " + routine.completedDates.size + " registro(s) histórico(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp) }
+                                            Column(Modifier.weight(1f)) {
+                                                Text(routine.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                                Text(routine.cadence + " · " + routine.completedDates.size + " registro(s) histórico(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                                            }
                                             TextButton(onClick = { routines = routines.filterNot { it.id == routine.id }; saveRoutines(context, routines) }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 10.sp) }
                                         }
-                                        Button(onClick = { routines = routines.map { item -> if (item.id == routine.id) item.copy(completedDates = if (doneToday) item.completedDates.filterNot { it == todayKey } else (item.completedDates + todayKey).distinct().takeLast(365)) else item }; saveRoutines(context, routines) }, modifier = Modifier.fillMaxWidth()) { Text(if (doneToday) "✓ Hecho hoy · Deshacer" else "Marcar como realizada hoy") }
+                                        Button(onClick = {
+                                            routines = routines.map { item ->
+                                                if (item.id == routine.id) item.copy(completedDates = if (doneToday) item.completedDates.filterNot { it == todayKey } else (item.completedDates + todayKey).distinct().takeLast(365)) else item
+                                            }
+                                            saveRoutines(context, routines)
+                                        }, modifier = Modifier.fillMaxWidth()) { Text(if (doneToday) "✓ Hecho hoy · Deshacer" else "Marcar como realizada hoy") }
                                         Text("Últimos 7 días: " + lastWeek + " realización(es)", color = cyan, fontSize = 11.sp)
                                     }
                                 }
@@ -933,7 +935,9 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("METAS Y OBJETIVOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("METAS Y OBJETIVOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                             Text("Define objetivos, registra avances y relaciónalos con tus tareas.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
                             Text("${goals.count { it.progress < 100f }} activa(s) · ${goals.count { it.progress >= 100f }} finalizada(s)", color = cyan, fontSize = 12.sp)
                             Button(onClick = { goalTitle = ""; goalCategory = "Personal"; showGoalDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("＋ Nueva meta") }
@@ -943,7 +947,10 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                                 Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                     Column(Modifier.padding(10.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Column(Modifier.weight(1f)) { Text(goal.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold); Text(goal.category + " · " + goal.taskIds.size + " tarea(s) vinculada(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp) }
+                                            Column(Modifier.weight(1f)) {
+                                                Text(goal.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                                Text(goal.category + " · " + goal.taskIds.size + " tarea(s) vinculada(s)", color = Color(0xFF9CB4C7), fontSize = 10.sp)
+                                            }
                                             TextButton(onClick = { goals = goals.filterNot { it.id == goal.id }; saveGoals(context, goals) }) { Text("Quitar", color = Color(0xFFFF9B9B), fontSize = 10.sp) }
                                         }
                                         Slider(value = goal.progress, onValueChange = { value -> goals = goals.map { if (it.id == goal.id) it.copy(progress = value) else it } }, onValueChangeFinished = { saveGoals(context, goals) }, valueRange = 0f..100f)
@@ -955,6 +962,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         }
                     }
                     }
+
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◇", "SEGURIDAD Y ESTADO DEL ASISTENTE", "Protección del dispositivo y conexión de IA", expandedSettingsFolder == "security", { expandedSettingsFolder = if (expandedSettingsFolder == "security") "" else "security" })
                     if (expandedSettingsFolder == "security") {
                         Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1045,7 +1053,7 @@ Text("Fechas admitidas: dd/MM/yyyy o yyyy-MM-dd, con hora HH:mm opcional.", colo
                         Button(onClick = { sendMessage() }, enabled = input.isNotBlank()) { Text("Enviar") }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("JARVIS 2.9 · Modo local", color = Color.Gray, fontSize = 11.sp)
+                    Text("JARVIS 3.0 · Modo local", color = Color.Gray, fontSize = 11.sp)
                 }
             }
         }
