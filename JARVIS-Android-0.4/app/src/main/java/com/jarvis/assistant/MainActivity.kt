@@ -329,8 +329,7 @@ private fun HolographicOrb(size: androidx.compose.ui.unit.Dp, modifier: Modifier
 
 @Composable
 fun Jarvis() {
-    var showSplash by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) { delay(1900); showSplash = false }
+    var showSplash by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
