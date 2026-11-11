@@ -333,6 +333,7 @@ fun Jarvis() {
     LaunchedEffect(Unit) { delay(1900); showSplash = false }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
     val startupScope = rememberCoroutineScope()
     val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Qwen 3." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
@@ -379,7 +380,6 @@ fun Jarvis() {
     val startupPrefs = remember { context.getSharedPreferences("jarvis_startup", android.content.Context.MODE_PRIVATE) }
     var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("qwen_started_once", false)) }
     var startupLoading by remember { mutableStateOf(false) }
-    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
     LaunchedEffect(firstStartRequired) {
         if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
             runCatching {
