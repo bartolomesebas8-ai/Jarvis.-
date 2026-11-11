@@ -900,7 +900,6 @@ fun Jarvis() {
                         Text(
                             when (expandedSettingsFolder) {
                                 "ai" -> "INTELIGENCIA ARTIFICIAL LOCAL"
-                                "lab" -> "LABORATORIO Y PROYECTOS"
                                 "memory" -> "MEMORIA Y CONOCIMIENTO"
                                 "tools" -> "PERSONALIZACIÓN Y HERRAMIENTAS"
                                 "productivity" -> "PRODUCTIVIDAD Y PLANIFICACIÓN"
@@ -911,7 +910,6 @@ fun Jarvis() {
                         Spacer(Modifier.height(12.dp))
                     }
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("✧", "INTELIGENCIA ARTIFICIAL LOCAL", "Preparación de modelos GGUF y llama.cpp", expandedSettingsFolder == "ai", { expandedSettingsFolder = if (expandedSettingsFolder == "ai") "" else "ai" })
-                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("⌘", "LABORATORIO Y PROYECTOS", "Código, espacios de trabajo y desarrollo", expandedSettingsFolder == "lab", { expandedSettingsFolder = if (expandedSettingsFolder == "lab") "" else "lab" })
                     Spacer(Modifier.height(9.dp))
                     if (expandedSettingsFolder == "ai") {
                     Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1042,114 +1040,6 @@ fun Jarvis() {
                         }
                     }
                     }
-                    if (expandedSettingsFolder == "lab") {
-                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("CODE GUARD · ESPACIOS INDEPENDIENTES", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            Spacer(Modifier.height(6.dp))
-                            Text("Pega o importa JavaScript, Python o Java. JARVIS detectará el lenguaje y seleccionará automáticamente el motor disponible. Pulsa Guardar y ejecutar para revisar el código antes de confirmar.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
-                            Spacer(Modifier.height(10.dp))
-                            Text("1. CÓDIGO", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            OutlinedTextField(value = codeWorkspaceSource, onValueChange = { if (it.length <= 200000) codeWorkspaceSource = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Pega aquí el código") }, placeholder = { Text("El código aparecerá aquí…") }, minLines = 7, maxLines = 12)
-                            OutlinedButton(onClick = {
-                                codeWorkspaceSource = """
-(() => {
-  const checks = [];
-  const test = (name, fn) => { try { checks.push({name, ok: !!fn()}); } catch (e) { checks.push({name, ok:false, error:e.message}); } };
-  test("Matemáticas", () => 10 + 5 === 15);
-  test("Variables", () => { let n = 20; return n === 20; });
-  test("Funciones", () => ((a,b) => a+b)(7,8) === 15);
-  test("Arreglos", () => [1,2,3].length === 3);
-  test("Objetos", () => ({name:"JARVIS"}).name === "JARVIS");
-  test("JSON", () => JSON.parse(JSON.stringify({active:true})).active === true);
-  test("Condiciones", () => 10 > 5 && 5 < 20);
-  test("Manejo de errores", () => { try { throw new Error("prueba"); } catch(e) { return e.message === "prueba"; } });
-  const passed = checks.filter(x => x.ok).length;
-  checks.forEach(x => console.log((x.ok ? "CORRECTO — " : "FALLO — ") + x.name + (x.error ? ": " + x.error : "")));
-  console.log("DIAGNÓSTICO JAVASCRIPT: " + passed + "/" + checks.length);
-  console.log(passed === checks.length ? "PRUEBAS SUPERADAS" : "SE DETECTARON FALLOS");
-  return "Diagnóstico terminado";
-})();
-""".trimIndent()
-                                codeGuardStatus = "Prueba de diagnóstico cargada. Pulsa Guardar y ejecutar."
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Cargar prueba de diagnóstico") }
-                            Button(onClick = {
-                                try {
-                                    require(codeWorkspaceSource.isNotBlank()) { "Pega código o carga la prueba de diagnóstico." }
-                                    require(codeWorkspaceSource.length <= 50000) { "El límite del motor JavaScript es 50 KB por ejecución." }
-                                    val baseName = "Código " + (codeWorkspaces.size + 1)
-                                    val existing = codeWorkspaces.firstOrNull { it.name == baseName }
-                                    val item = CodeWorkspace(existing?.id ?: java.util.UUID.randomUUID().toString(), baseName, codeWorkspaceSource)
-                                    val updatedWorkspaces = if (existing == null) codeWorkspaces + item else codeWorkspaces.map { if (it.id == existing.id) item else it }
-                                    CodeWorkspaces.save(context, updatedWorkspaces)
-                                    codeWorkspaces = updatedWorkspaces
-                                    codeGuardStatus = "Código guardado. Revisa la confirmación para ejecutarlo."
-                                    pendingCodeRun = item
-                                } catch (error: Exception) { codeGuardStatus = error.message ?: "No se pudo guardar el código." }
-                            }, enabled = codeWorkspaceSource.isNotBlank() && codeWorkspaces.size < 20, modifier = Modifier.fillMaxWidth()) { Text("Guardar y ejecutar") }
-                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("O importar un archivo") }
-                            Button(onClick = { codeGuardPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Importar archivo como espacio separado") }
-                            if (codeGuardStatus.isNotBlank()) Text(codeGuardStatus, color = cyan, fontSize = 11.sp)
-                            Text("Espacios guardados: " + codeWorkspaces.size + " / 20", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(8.dp))
-                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
-                                Text("ESTADO DE EJECUCIÓN", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                Text("Enrutador central activo · JavaScript y Python 3.12 disponibles · Java mediante intérprete Java-like. Los motores Python y Java se ejecutan en un proceso Android aislado con límite de tiempo.", color = Color(0xFFFFD28A), fontSize = 12.sp)
-                                Text("Cada ejecución requiere revisión y confirmación. La prueba está limitada: sin acceso a datos personales, archivos del teléfono, red ni procesos del sistema.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                            } }
-                            codeWorkspaces.forEach { workspace ->
-                                Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
-                                    Text(workspace.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                    Text(workspace.source.length.toString() + " caracteres · aislado de los demás espacios", color = Color(0xFF8FAABD), fontSize = 10.sp)
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        TextButton(onClick = { codeWorkspaceName = workspace.name; codeWorkspaceSource = workspace.source }) { Text("Editar", color = cyan) }
-                                        TextButton(onClick = { pendingCodeRun = workspace }) { Text(if (workspace.id in codeRunningIds) "Ejecutando…" else "Ejecutar", color = Color(0xFF9FE6B8)) }
-                                        TextButton(onClick = {
-                                            try {
-                                                val report = CodeGuardAnalyzer.analyze(workspace.name, workspace.source)
-                                                codeWorkspaceReports = codeWorkspaceReports + (workspace.id to report)
-                                                codeGuardStatus = "Análisis terminado: ${report.language}, ${report.analyzedLines} líneas revisadas."
-                                            } catch (error: Exception) {
-                                                codeGuardStatus = "Error al analizar: ${error.message ?: "no se pudo completar la revisión"}"
-                                                codeWorkspaceReports = codeWorkspaceReports - workspace.id
-                                            }
-                                        }) { Text("Analizar", color = cyan) }
-                                        TextButton(onClick = { codeWorkspaces = codeWorkspaces.filterNot { it.id == workspace.id }; CodeWorkspaces.save(context, codeWorkspaces); codeWorkspaceReports = codeWorkspaceReports - workspace.id; if (selectedCodeA == workspace.id) selectedCodeA = ""; if (selectedCodeB == workspace.id) selectedCodeB = "" }) { Text("Eliminar", color = Color(0xFFFF9B9B)) }
-                                    }
-                                    codeRunResults[workspace.id]?.let { result ->
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(result.output, color = if (result.success) Color(0xFF9FE6B8) else Color(0xFFFFB4A2), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        Text("Motor: ${result.engine} · ${result.durationMs} ms", color = cyan, fontSize = 10.sp)
-                                        if (result.explanation.isNotBlank()) {
-                                            TextButton(onClick = { codeRunDetails = if (workspace.id in codeRunDetails) codeRunDetails - workspace.id else codeRunDetails + workspace.id }) { Text(if (workspace.id in codeRunDetails) "Ocultar resultado" else "Ver resultado", color = cyan, fontSize = 11.sp) }
-                                            if (workspace.id in codeRunDetails) {
-                                                Text("Lenguaje: ${result.language}", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                                Text("Comprobaciones: ${result.checks}", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                                Text(result.explanation, color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                            }
-                                        }
-                                    }
-                                    codeWorkspaceReports[workspace.id]?.let { report ->
-                                        Text("Análisis: " + report.language + " · confianza " + report.confidence + " · " + report.analyzedLines + " líneas", color = cyan, fontSize = 11.sp)
-                                        Text(report.summary, color = Color(0xFFFFD28A), fontSize = 11.sp)
-                                        report.findings.take(12).forEach { finding -> Text("Línea " + finding.line + " · " + finding.risk + " · " + finding.title + ": " + finding.explanation, color = Color(0xFFB8C9D8), fontSize = 10.sp) }
-                                        if (report.findings.isEmpty()) Text("Sin coincidencias; no demuestra que sea seguro.", color = Color(0xFFFFD28A), fontSize = 10.sp)
-                                    }
-                                } }
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text("COMPARAR POSIBLES CONFLICTOS", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            var compareAExpanded by remember { mutableStateOf(false) }
-                            var compareBExpanded by remember { mutableStateOf(false) }
-                            Box { OutlinedButton(onClick = { compareAExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Espacio A: " + (codeWorkspaces.firstOrNull { it.id == selectedCodeA }?.name ?: "Seleccionar")) }; DropdownMenu(expanded = compareAExpanded, onDismissRequest = { compareAExpanded = false }) { codeWorkspaces.forEach { item -> DropdownMenuItem(text = { Text(item.name) }, onClick = { selectedCodeA = item.id; compareAExpanded = false }) } } }
-                            Box { OutlinedButton(onClick = { compareBExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Espacio B: " + (codeWorkspaces.firstOrNull { it.id == selectedCodeB }?.name ?: "Seleccionar")) }; DropdownMenu(expanded = compareBExpanded, onDismissRequest = { compareBExpanded = false }) { codeWorkspaces.forEach { item -> DropdownMenuItem(text = { Text(item.name) }, onClick = { selectedCodeB = item.id; compareBExpanded = false }) } } }
-                            Button(onClick = { val first = codeWorkspaces.firstOrNull { it.id == selectedCodeA }; val second = codeWorkspaces.firstOrNull { it.id == selectedCodeB }; codeComparison = if (first == null || second == null) listOf("Selecciona dos espacios guardados.") else if (first.id == second.id) listOf("Selecciona dos espacios diferentes.") else CodeWorkspaces.compare(first, second) }, enabled = codeWorkspaces.size >= 2, modifier = Modifier.fillMaxWidth()) { Text("Comparar compatibilidad") }
-                            codeComparison.forEach { Text("• " + it, color = Color(0xFFFFD28A), fontSize = 11.sp) }
-                            Text("El comparador usa patrones de texto: puede omitir conflictos o señalar coincidencias que no son errores. No compila, ejecuta ni fusiona código.", color = Color(0xFFFFD28A), fontSize = 10.sp)
-                        }
-                    }
-                    }
-                    Spacer(Modifier.height(18.dp))
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local", expandedSettingsFolder == "memory", { expandedSettingsFolder = if (expandedSettingsFolder == "memory") "" else "memory" })
                     Spacer(Modifier.height(9.dp))
                     if (expandedSettingsFolder == "memory") {
