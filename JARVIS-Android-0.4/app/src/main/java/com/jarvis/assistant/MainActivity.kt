@@ -572,6 +572,7 @@ fun Jarvis() {
                 lower.startsWith("consulta ") || lower.startsWith("encuentra ")
             val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
             val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
+            val learningSaveIntent = lower.startsWith("guardar aprendizaje:") || lower.startsWith("aprende esto:")
             val taskCreateIntent = lower.startsWith("crear tarea:") || lower.startsWith("agregar tarea:") || lower.startsWith("añadir tarea:")
             val taskListIntent = lower == "mis tareas" || lower == "listar tareas" || lower == "ver tareas" || lower == "tareas pendientes"
             val taskCompleteIntent = lower.startsWith("completar tarea:") || lower.startsWith("marcar tarea:")
@@ -587,6 +588,8 @@ fun Jarvis() {
                     appendLine()
                     appendLine("FUNCIONES DISPONIBLES:")
                     appendLine("• Memoria local: guardar, consultar y organizar recuerdos.")
+                    val learningStats = JarvisLearningEngine.stats(context)
+                    appendLine("• Biblioteca de aprendizaje: " + learningStats.records + " conocimientos y " + learningStats.sessions + " sesiones registradas.")
                     appendLine("• Biblioteca: importar y buscar documentos.")
                     appendLine("• Investigación: revisar documentos importados.")
                     appendLine("• Code Guard: analizar código y mostrar advertencias.")
@@ -648,6 +651,27 @@ fun Jarvis() {
                     "Eliminé la tarea «" + match.title + "» de este dispositivo."
                 }
             } else if (memorySaveIntent) { val proposed = if (msg.contains(":")) msg.substringAfter(":").trim() else msg.substringAfter("recuerda esto:", "").trim(); if (proposed.isBlank()) "Escribe qué quieres guardar después de los dos puntos." else { pendingMemorySuggestion = proposed; "Te pediré confirmación antes de guardar este recuerdo." } }
+            else if (learningSaveIntent) {
+                val body = msg.substringAfter(":").trim()
+                if (body.isBlank()) "Escribe el conocimiento después de «guardar aprendizaje:»."
+                else try {
+                    val title = body.lineSequence().first().take(120).ifBlank { "Conocimiento aportado por el usuario" }
+                    val saved = JarvisLearningEngine.addKnowledge(context, title, "Conocimiento aportado por el usuario", body, sourceType = "user", confidence = 1.0)
+                    "Guardé este conocimiento en la biblioteca permanente de JARVIS: «" + saved.title + "». Podré recuperarlo en conversaciones futuras."
+                } catch (error: Exception) { error.message ?: "No se pudo guardar el conocimiento." }
+            }
+            else if (lower.startsWith("busca en lo aprendido")) {
+                val query = msg.substringAfter("aprendido", "").trim().removePrefix("sobre").trim()
+                if (query.isBlank()) "Dime qué tema quieres buscar en los conocimientos aprendidos."
+                else {
+                    val matches = JarvisLearningEngine.search(context, query, 8)
+                    if (matches.isEmpty()) "Todavía no encuentro conocimientos guardados sobre «" + query + "»."
+                    else "Encontré " + matches.size + " conocimiento(s):\n\n" + matches.joinToString("\n\n") { match ->
+                        "• " + match.record.title + "\n" + match.excerpt +
+                            (if (match.record.sourceUrl.isNotBlank()) "\nFuente: " + match.record.sourceUrl else "")
+                    }
+                }
+            }
             else if (investigationIntent) { val query = msg.substringAfter("archivos", msg.substringAfter("biblioteca", "")).trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
             else if (searchIntent) {
                 val query = msg.substringAfter("busca", msg.substringAfter("buscar", msg.substringAfter("consulta", msg.substringAfter("encuentra", ""))))
@@ -690,9 +714,11 @@ fun Jarvis() {
                     KnowledgeLibrary.search(context, msg, 8).joinToString("\n") { "• ${it.document.name}: ${it.excerpt}".take(900) }
                 }.getOrDefault("")
                 val directProfileFact = runCatching { KnowledgeLibrary.answerQuestion(context, msg) }.getOrNull().orEmpty()
+                val learningContext = runCatching { JarvisLearningEngine.contextFor(context, msg) }.getOrDefault("")
                 val enrichedPrompt = buildString {
                     if (memoryContext.isNotBlank()) append("RECUERDOS LOCALES DEL USUARIO:\\n").append(memoryContext).append("\n\n")
                     if (directProfileFact.isNotBlank()) append("DATO PERSONAL DIRECTO ENCONTRADO (úsalo solo si responde a la pregunta; no inventes datos):\\n").append(directProfileFact).append("\\n\\n")
+                    if (learningContext.isNotBlank()) append(learningContext).append("\n\n")
                     if (documentContext.isNotBlank()) append("FRAGMENTOS RELEVANTES DE LA BIBLIOTECA:\\n").append(documentContext).append("\n\n")
                     if (recentContext.isNotBlank()) append("CONVERSACIÓN RECIENTE:\\n").append(recentContext).append("\n\n")
                     append("INSTRUCCIONES DE CONVERSACIÓN Y MEMORIA:\\n")
