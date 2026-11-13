@@ -691,10 +691,9 @@ fun Jarvis() {
                     } else {
                         "Encontré " + matches.size + " resultado(s) en el almacenamiento del teléfono:\\n\\n" +
                             matches.joinToString("\\n\\n") { hit -> "📄 " + hit.file.name + "\\n" + hit.file.parent + "\\n" + hit.excerpt } +
-                            "\\n\\nBúsqueda local: no se ejecuté ni modifiqué ningún archivo."
+                            "\\n\\nBúsqueda local: no se ejecutó ni modificó ningún archivo."
                     }
                     }
-                }
             } else {
                 if (llamaReady) "__JARVIS_LOCAL_LLM__"
                 else KnowledgeLibrary.answerQuestion(context, msg)
@@ -752,7 +751,6 @@ fun Jarvis() {
                             else webPages.joinToString("\\n\\n") { page -> page.title + "\\n" + page.extractedText.take(1200) }
                         } else LocalLlamaRuntime.generate(enrichedPrompt)
                         val sourceList = if (webPages.isEmpty()) "" else "\\n\\nFuentes consultadas:\\n" + webPages.joinToString("\\n") { "• ${it.title}: ${it.url}" }
-                        val answerWithSources = rawAnswer + sourceList
                         val memoryMatch = Regex("\\[JARVIS_MEMORY:\\s*(.{3,240}?)\\s*\\]", RegexOption.IGNORE_CASE).find(rawAnswer)
                         val answer = rawAnswer.replace(Regex("\\s*\\[JARVIS_MEMORY:\\s*.{3,240}?\\s*\\]", RegexOption.IGNORE_CASE), "").trim()
                         if (memoryMatch != null) {
@@ -764,7 +762,7 @@ fun Jarvis() {
                         }
                         val latest = lines.toMutableList()
                         val placeholderIndex = latest.indexOfLast { it.who == "JARVIS" && it.text == thinking.text }
-                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", answerWithSources.ifBlank { "Cuéntame un poco más para poder ayudarte." })
+                        if (placeholderIndex >= 0) latest[placeholderIndex] = Line("JARVIS", (answer + sourceList).ifBlank { "Cuéntame un poco más para poder ayudarte." })
                         lines = latest
                         saveHistory(context, latest)
                     } catch (error: Exception) {
