@@ -89,6 +89,27 @@ object JarvisSharedStorage {
      * existing knowledge snapshot, its previous version is archived in the
      * single top-level "Desechos de Jarvis" folder, never mixed with active data.
      */
+    /** Archives one superseded knowledge item without copying the whole library. */
+    fun archiveLearningEntry(title: String, serializedRecord: String) {
+        if (!hasAccess()) return
+        val root = ensureStructure()
+        val waste = File(root, "Desechos de Jarvis").apply { mkdirs() }
+        val safeTitle = title.replace(Regex("[^A-Za-z0-9_-]"), "_").trim('_').take(70).ifBlank { "conocimiento" }
+        val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.ROOT)
+            .format(java.util.Date())
+        var archived = File(waste, safeTitle + "_" + timestamp + ".json")
+        var suffix = 1
+        while (archived.exists()) {
+            archived = File(waste, safeTitle + "_" + timestamp + "_" + suffix++ + ".json")
+        }
+        val temporary = File(waste, archived.name + ".tmp")
+        temporary.writeText(serializedRecord, Charsets.UTF_8)
+        if (!temporary.renameTo(archived)) {
+            temporary.delete()
+            throw IllegalStateException("No se pudo guardar el conocimiento reemplazado en Desechos de Jarvis.")
+        }
+    }
+
     fun saveLearningFile(filename: String, content: String, archivePrevious: Boolean = true) {
         val target = learningFile(filename) ?: return
         target.parentFile?.mkdirs()
