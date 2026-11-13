@@ -118,7 +118,7 @@ object JarvisLearningEngine {
         writeAtomically(knowledgeFile(context), serialized)
         // Shared storage is the durable source of truth when Android permission is available.
         // Replaced knowledge snapshots are automatically moved to "Desechos de Jarvis".
-        JarvisSharedStorage.saveLearningFile(KNOWLEDGE_FILE, serialized, archivePrevious = true)
+        JarvisSharedStorage.saveLearningFile(KNOWLEDGE_FILE, serialized, archivePrevious = false)
     }
 
     /** Saves a lesson or researched page, preserving provenance and deduplicating exact content. */
@@ -144,10 +144,27 @@ object JarvisLearningEngine {
         }
         val digest = checksum(cleanContent)
         val records = readRecords(context)
-        val existing = records.firstOrNull { it.checksum == digest }
-        if (existing != null) return@synchronized existing
-        val currentBytes = records.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() }
-        require(records.size < MAX_RECORDS) { "La biblioteca alcanzó el límite de " + MAX_RECORDS + " conocimientos." }
+        val exactDuplicate = records.firstOrNull { it.checksum == digest }
+        if (exactDuplicate != null) return@synchronized exactDuplicate
+
+        // A new verified lesson with the same title and topic supersedes the old one.
+        // Only that obsolete entry is moved to the waste folder, not the entire library.
+        val replacementIndex = records.indexOfFirst {
+            normalize(it.title) == normalize(cleanTitle) && normalize(it.topic) == normalize(cleanTopic)
+        }
+        val superseded = records.getOrNull(replacementIndex)
+        if (superseded != null) {
+            JarvisSharedStorage.archiveLearningEntry(
+                superseded.title,
+                recordJson(superseded).toString()
+            )
+        }
+
+        val currentBytes = records.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() } -
+            (superseded?.content?.toByteArray(Charsets.UTF_8)?.size?.toLong() ?: 0L)
+        if (superseded == null) {
+            require(records.size < MAX_RECORDS) { "La biblioteca alcanzó el límite de " + MAX_RECORDS + " conocimientos." }
+        }
         require(currentBytes + cleanContent.toByteArray(Charsets.UTF_8).size <= MAX_TOTAL_BYTES) {
             "La biblioteca de aprendizaje alcanzó su límite local de 64 MB."
         }
@@ -158,7 +175,7 @@ object JarvisLearningEngine {
             sourceTitle.trim().take(180), now, verifiedAt,
             confidence.coerceIn(0.0, 1.0), digest
         )
-        records.add(record)
+        if (replacementIndex >= 0) records[replacementIndex] = record else records.add(record)
         persistRecords(context, records)
         record
     }
