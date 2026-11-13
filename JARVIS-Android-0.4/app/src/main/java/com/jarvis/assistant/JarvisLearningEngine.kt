@@ -80,7 +80,8 @@ object JarvisLearningEngine {
     }
 
     private fun readRecords(context: Context): MutableList<JarvisLearningRecord> {
-        val file = knowledgeFile(context)
+        val file = runCatching { JarvisSharedStorage.learningFile(KNOWLEDGE_FILE) }.getOrNull()?.takeIf { it.isFile }
+            ?: knowledgeFile(context)
         if (!file.isFile) return mutableListOf()
         return runCatching {
             val array = JSONArray(file.readText(Charsets.UTF_8))
@@ -115,7 +116,9 @@ object JarvisLearningEngine {
         records.forEach { json.put(recordJson(it)) }
         val serialized = json.toString()
         writeAtomically(knowledgeFile(context), serialized)
-        runCatching { JarvisSharedStorage.saveSnapshot("Aprendizaje", KNOWLEDGE_FILE, serialized) }
+        // Shared storage is the durable source of truth when Android permission is available.
+        // Replaced knowledge snapshots are automatically moved to "Desechos de Jarvis".
+        JarvisSharedStorage.saveLearningFile(KNOWLEDGE_FILE, serialized, archivePrevious = true)
     }
 
     /** Saves a lesson or researched page, preserving provenance and deduplicating exact content. */
@@ -217,7 +220,8 @@ object JarvisLearningEngine {
     }
 
     private fun readSessions(context: Context): MutableList<JarvisLearningSession> {
-        val file = sessionsFile(context)
+        val file = runCatching { JarvisSharedStorage.learningFile(SESSIONS_FILE) }.getOrNull()?.takeIf { it.isFile }
+            ?: sessionsFile(context)
         if (!file.isFile) return mutableListOf()
         return runCatching {
             val array = JSONArray(file.readText(Charsets.UTF_8))
@@ -257,7 +261,8 @@ object JarvisLearningEngine {
         }
         val serialized = array.toString()
         writeAtomically(sessionsFile(context), serialized)
-        runCatching { JarvisSharedStorage.saveSnapshot("Aprendizaje", SESSIONS_FILE, serialized) }
+        // Session history stays in the learning folder; only replaced knowledge snapshots are archived.
+        runCatching { JarvisSharedStorage.saveLearningFile(SESSIONS_FILE, serialized, archivePrevious = false) }
     }
 
     fun startSession(context: Context, title: String, teacher: String): JarvisLearningSession = synchronized(lock) {
