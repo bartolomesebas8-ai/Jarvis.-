@@ -153,13 +153,6 @@ object JarvisLearningEngine {
             normalize(it.title) == normalize(cleanTitle) && normalize(it.topic) == normalize(cleanTopic)
         }
         val superseded = records.getOrNull(replacementIndex)
-        if (superseded != null) {
-            JarvisSharedStorage.archiveLearningEntry(
-                superseded.title,
-                recordJson(superseded).toString()
-            )
-        }
-
         val currentBytes = records.sumOf { it.content.toByteArray(Charsets.UTF_8).size.toLong() } -
             (superseded?.content?.toByteArray(Charsets.UTF_8)?.size?.toLong() ?: 0L)
         if (superseded == null) {
@@ -168,6 +161,13 @@ object JarvisLearningEngine {
         require(currentBytes + cleanContent.toByteArray(Charsets.UTF_8).size <= MAX_TOTAL_BYTES) {
             "La biblioteca de aprendizaje alcanzó su límite local de 64 MB."
         }
+        if (superseded != null) {
+            JarvisSharedStorage.archiveLearningEntry(
+                superseded.title,
+                recordJson(superseded).toString()
+            )
+        }
+
         val now = System.currentTimeMillis()
         val record = JarvisLearningRecord(
             UUID.randomUUID().toString(), cleanTitle, cleanTopic, cleanContent,
