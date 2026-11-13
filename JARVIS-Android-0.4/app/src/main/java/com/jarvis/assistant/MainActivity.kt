@@ -675,7 +675,7 @@ fun Jarvis() {
             else if (investigationIntent) { val query = msg.substringAfter("archivos", msg.substringAfter("biblioteca", "")).trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
             else if (searchIntent) {
                 val query = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra)\\s*"), "")
-                    .trim().removePrefix("en ").removePrefix("mi ").removePrefix("mis ")
+                    .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("en ").removePrefix("mi ").removePrefix("mis ")
                     .removePrefix("los ").removePrefix("las ").removePrefix("archivos ")
                     .removePrefix("documentos ").removePrefix("información sobre ")
                     .removePrefix("informacion sobre ").removePrefix("sobre ").removePrefix("acerca de ")
@@ -715,7 +715,7 @@ fun Jarvis() {
                 val learningContext = runCatching { JarvisLearningEngine.contextFor(context, msg) }.getOrDefault("")
                 val webResearchRequested = reply == "__JARVIS_WEB_RESEARCH__"
                 val webQuery = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra)\\s*"), "")
-                    .trim().removePrefix("sobre ").removePrefix("acerca de ").take(240)
+                    .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("sobre ").removePrefix("acerca de ").take(240)
                 jarvisScope.launch {
                     llamaBusy = true
                     try {
