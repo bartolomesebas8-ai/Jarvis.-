@@ -29,7 +29,7 @@ object JarvisSharedStorage {
     fun ensureStructure(): File {
         check(hasAccess()) { "JARVIS necesita que autorices «Permitir administrar todos los archivos» en los ajustes de Android." }
         val root = root() ?: error("No se pudo localizar el almacenamiento compartido.")
-        listOf("Documentos", "Modelos", "Copias_de_seguridad").forEach { File(root, it).mkdirs() }
+        listOf("Documentos", "Modelos", "Copias_de_seguridad", "Desechos de Jarvis").forEach { File(root, it).mkdirs() }
         val data = partition(root)
         listOf("Memoria", "Historial", "Configuracion").forEach { File(data, it).mkdirs() }
         return root
@@ -60,7 +60,7 @@ object JarvisSharedStorage {
             val nextNumber = (dirs.size + 1).coerceAtLeast(1)
             File(root, "Datos_" + nextNumber.toString().padStart(3, '0')).apply { mkdirs() }
         } else current
-        listOf("Memoria", "Historial", "Configuracion").forEach { File(selected, it).mkdirs() }
+        listOf("Memoria", "Historial", "Configuracion", "Aprendizaje").forEach { File(selected, it).mkdirs() }
         return selected
     }
 
