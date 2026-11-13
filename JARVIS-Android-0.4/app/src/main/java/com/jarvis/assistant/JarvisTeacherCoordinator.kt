@@ -72,7 +72,7 @@ object JarvisTeacherRouter {
         val q = normalize(question)
         val words = q.split(" ").filter { it.isNotBlank() }
         val complexSignals = listOf(
-            "compara", "compara las", "evalua", "analiza profundamente", "investiga",
+            "compara", "compara las", "evalua", "analiza profundamente",
             "arquitectura", "disena", "disena un sistema", "depura", "audita",
             "contradicciones", "varias fuentes", "plan completo", "razonamiento"
         )
