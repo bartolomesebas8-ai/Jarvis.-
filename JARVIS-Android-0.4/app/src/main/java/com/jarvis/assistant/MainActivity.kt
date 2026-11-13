@@ -569,7 +569,9 @@ fun Jarvis() {
         if (msg.isNotEmpty()) {
             val lower = msg.lowercase(Locale.ROOT)
             val searchIntent = lower.startsWith("busca ") || lower.startsWith("buscar ") ||
-                lower.startsWith("consulta ") || lower.startsWith("encuentra ")
+                lower.startsWith("consulta ") || lower.startsWith("encuentra ") ||
+                lower.startsWith("investiga en internet ") || lower.startsWith("investigar en internet ") ||
+                lower.startsWith("investiga en la web ") || lower.startsWith("investigar en la web ")
             val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
             val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
             val learningSaveIntent = lower.startsWith("guardar aprendizaje:") || lower.startsWith("aprende esto:")
@@ -674,8 +676,8 @@ fun Jarvis() {
             }
             else if (investigationIntent) { val query = msg.substringAfter("archivos", msg.substringAfter("biblioteca", "")).trim().removePrefix(":").trim(); if (query.isBlank()) "Dime qué tema quieres investigar en tus archivos." else try { val report = LibraryInvestigator.investigate(context, query); investigationReport = report; if (report.hits.isEmpty()) "Revisé ${report.documentsScanned} documento(s) y no encontré coincidencias." else "Encontré ${report.hits.size} fragmento(s) en ${report.matchedDocuments} documento(s). Abre Configuración > Biblioteca para ver el informe. No ejecuté ni modifiqué archivos." } catch (error: Exception) { error.message ?: "No se pudo investigar." } }
             else if (searchIntent) {
-                val query = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra)\\s*"), "")
-                    .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("en ").removePrefix("mi ").removePrefix("mis ")
+                val query = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra|investiga en internet|investigar en internet|investiga en la web|investigar en la web)\\s*"), "")
+                    .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("web ") .removePrefix("en ").removePrefix("mi ").removePrefix("mis ")
                     .removePrefix("los ").removePrefix("las ").removePrefix("archivos ")
                     .removePrefix("documentos ").removePrefix("información sobre ")
                     .removePrefix("informacion sobre ").removePrefix("sobre ").removePrefix("acerca de ")
