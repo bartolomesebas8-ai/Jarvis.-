@@ -64,6 +64,68 @@ object JarvisSharedStorage {
         return selected
     }
 
+    /**
+     * Returns the current shared learning file when storage access is available.
+     * Existing files from older Datos_NNN partitions are preferred to avoid
+     * silently starting a second, empty knowledge library after rotation.
+     */
+    fun learningFile(filename: String): File? {
+        if (!hasAccess()) return null
+        val root = ensureStructure()
+        val safeName = filename.replace(Regex("[^A-Za-z0-9._-]"), "_").take(100)
+        val partitions = root.listFiles { f ->
+            f.isDirectory && f.name.matches(Regex("Datos_[0-9]{3}"))
+        }?.sortedByDescending { it.name }.orEmpty()
+        val existing = partitions.firstNotNullOfOrNull { partition ->
+            File(File(partition, "Aprendizaje"), safeName).takeIf { it.isFile }
+        }
+        if (existing != null) return existing
+        val current = partition(root)
+        return File(File(current, "Aprendizaje").apply { mkdirs() }, safeName)
+    }
+
+    /**
+     * Writes the current learning file to shared storage. When replacing an
+     * existing knowledge snapshot, its previous version is archived in the
+     * single top-level "Desechos de Jarvis" folder, never mixed with active data.
+     */
+    fun saveLearningFile(filename: String, content: String, archivePrevious: Boolean = true) {
+        val target = learningFile(filename) ?: return
+        target.parentFile?.mkdirs()
+        val bytes = content.toByteArray(Charsets.UTF_8)
+        if (target.isFile) {
+            val oldBytes = runCatching { target.readBytes() }.getOrDefault(byteArrayOf())
+            if (oldBytes.contentEquals(bytes)) return
+            if (archivePrevious && oldBytes.isNotEmpty()) {
+                val root = root() ?: return
+                val waste = File(root, "Desechos de Jarvis").apply { mkdirs() }
+                val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.ROOT)
+                    .format(java.util.Date())
+                var archived = File(waste, target.nameWithoutExtension + "_" + timestamp + "." + target.extension)
+                var suffix = 1
+                while (archived.exists()) {
+                    archived = File(waste, target.nameWithoutExtension + "_" + timestamp + "_" + suffix++ + "." + target.extension)
+                }
+                val temporaryArchive = File(waste, archived.name + ".tmp")
+                temporaryArchive.writeBytes(oldBytes)
+                if (!temporaryArchive.renameTo(archived)) {
+                    temporaryArchive.delete()
+                    throw IllegalStateException("No se pudo archivar la versión anterior de los conocimientos.")
+                }
+            }
+        }
+        val temporary = File(target.parentFile, target.name + ".tmp")
+        temporary.writeBytes(bytes)
+        if (target.exists() && !target.delete()) {
+            temporary.delete()
+            throw IllegalStateException("No se pudo reemplazar el archivo de aprendizaje.")
+        }
+        if (!temporary.renameTo(target)) {
+            temporary.delete()
+            throw IllegalStateException("No se pudo guardar el archivo de aprendizaje.")
+        }
+    }
+
     fun saveSnapshot(category: String, filename: String, content: String) {
         val root = ensureStructure()
         val safeCategory = category.replace(Regex("[^A-Za-z0-9_-]"), "_").take(40)
