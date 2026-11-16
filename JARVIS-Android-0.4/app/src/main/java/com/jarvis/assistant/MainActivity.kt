@@ -763,7 +763,7 @@ fun Jarvis() {
                         val rawAnswer = if (webResearchRequested && !llamaReady) {
                             if (webPages.isEmpty()) "No encontré resultados en la fuente pública gratuita de Wikipedia en español. Prueba con otros términos o consulta una fuente especializada."
                             else webPages.joinToString("\\n\\n") { page -> page.title + "\\n" + page.extractedText.take(1200) }
-                        } else LocalLlamaRuntime.generate(enrichedPrompt)
+                        } else OpenJarvisAndroidKernel.generate(enrichedPrompt)
                         val sourceList = if (webPages.isEmpty()) "" else "\\n\\nFuentes consultadas:\\n" + webPages.joinToString("\\n") { "• ${it.title}: ${it.url}" }
                         val memoryMatch = Regex("\\[JARVIS_MEMORY:\\s*(.{3,240}?)\\s*\\]", RegexOption.IGNORE_CASE).find(rawAnswer)
                         val answer = rawAnswer.replace(Regex("\\s*\\[JARVIS_MEMORY:\\s*.{3,240}?\\s*\\]", RegexOption.IGNORE_CASE), "").trim()
