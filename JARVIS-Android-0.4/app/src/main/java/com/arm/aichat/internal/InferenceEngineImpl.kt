@@ -114,6 +114,7 @@ internal class InferenceEngineImpl private constructor(
     override val state: StateFlow<InferenceEngine.State> = _state.asStateFlow()
 
     private var _readyForSystemPrompt = false
+    @Volatile private var _nativeInitialized = false
     @Volatile
     private var _cancelGeneration = false
 
@@ -134,12 +135,20 @@ internal class InferenceEngineImpl private constructor(
                 Log.i(TAG, "Loading native library...")
                 System.loadLibrary("ai-chat")
                 init(nativeLibDir)
+                _nativeInitialized = true
                 _state.value = InferenceEngine.State.Initialized
                 Log.i(TAG, "Native library loaded! System info: \n${systemInfo()}")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load native library", e)
-                throw e
+                _state.value = InferenceEngine.State.Error(e)
+            } catch (e: LinkageError) {
+                val failure = IllegalStateException(
+                    "No se pudo cargar la biblioteca nativa de llama.cpp: ${e.message ?: e.javaClass.simpleName}",
+                    e
+                )
+                Log.e(TAG, "Failed to load native library", e)
+                _state.value = InferenceEngine.State.Error(failure)
             }
         }
     }
@@ -295,9 +304,14 @@ internal class InferenceEngineImpl private constructor(
                 }
 
                 is InferenceEngine.State.Error -> {
-                    Log.i(TAG, "Resetting error states...")
+                    check(_nativeInitialized) {
+                        "La biblioteca nativa de llama.cpp no llegó a inicializarse. Reinicia JARVIS después de corregir el error."
+                    }
+                    Log.i(TAG, "Releasing partially loaded model after error...")
+                    _readyForSystemPrompt = false
+                    unload()
                     _state.value = InferenceEngine.State.Initialized
-                    Log.i(TAG, "States reset!")
+                    Log.i(TAG, "Native model state reset!")
                     Unit
                 }
 
