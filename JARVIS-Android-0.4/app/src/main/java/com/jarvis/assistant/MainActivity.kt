@@ -379,17 +379,6 @@ fun Jarvis() {
     val startupPrefs = remember { context.getSharedPreferences("jarvis_startup", android.content.Context.MODE_PRIVATE) }
     var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("qwen_started_once", false)) }
     var startupLoading by remember { mutableStateOf(false) }
-    LaunchedEffect(firstStartRequired) {
-        if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
-            runCatching {
-                LocalLlamaRuntime.loadBundled(
-                    context,
-                    "jarvis-model.gguf",
-                    "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
-                )
-            }
-        }
-    }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
     var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
@@ -402,6 +391,26 @@ fun Jarvis() {
     var qwenDownloaded by remember { mutableStateOf(true) }
     var qwenDownloading by remember { mutableStateOf(false) }
     var qwenDownloadProgress by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(firstStartRequired) {
+        if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
+            llamaLoading = true
+            localModelStatus = "Reanudando Qwen 3…"
+            try {
+                localModelStatus = LocalLlamaRuntime.loadBundled(
+                    context,
+                    "jarvis-model.gguf",
+                    "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
+                )
+                llamaReady = true
+            } catch (error: Exception) {
+                llamaReady = false
+                localModelStatus = error.message ?: "No se pudo reanudar Qwen 3."
+            } finally {
+                llamaLoading = false
+            }
+        }
+    }
 
     // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
     BackHandler(enabled = !showSplash && showSettings) {
@@ -840,30 +849,24 @@ fun Jarvis() {
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
-                            if (!startupLoading) {
-                                if (!JarvisSharedStorage.hasAccess()) {
-                                    val permissionIntent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                        data = android.net.Uri.parse("package:${context.packageName}")
-                                    }
-                                    try { allFilesAccessLauncher.launch(permissionIntent) }
-                                    catch (_: Exception) { allFilesAccessLauncher.launch(android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
-                                } else startupScope.launch {
-                                    startupLoading = true
-                                    startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
-                                    try {
-                                        LocalLlamaRuntime.loadBundled(
-                                            context,
-                                            "jarvis-model.gguf",
-                                            "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
-                                        )
-                                        startupPrefs.edit().putBoolean("qwen_started_once", true).apply()
-                                        firstStartRequired = false
-                                        startupMessage = "Qwen 3 está listo."
-                                    } catch (error: Exception) {
-                                        startupMessage = error.message ?: "No se pudo iniciar Qwen 3. Puedes volver a intentarlo."
-                                    } finally {
-                                        startupLoading = false
-                                    }
+                            if (!startupLoading) startupScope.launch {
+                                startupLoading = true
+                                startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
+                                try {
+                                    LocalLlamaRuntime.loadBundled(
+                                        context,
+                                        "jarvis-model.gguf",
+                                        "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
+                                    )
+                                    llamaReady = true
+                                    startupPrefs.edit().putBoolean("qwen_started_once", true).apply()
+                                    firstStartRequired = false
+                                    startupMessage = "Qwen 3 está listo."
+                                } catch (error: Exception) {
+                                    llamaReady = false
+                                    startupMessage = error.message ?: "No se pudo iniciar Qwen 3. Puedes volver a intentarlo."
+                                } finally {
+                                    startupLoading = false
                                 }
                             }
                         },
