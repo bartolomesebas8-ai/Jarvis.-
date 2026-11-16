@@ -95,9 +95,10 @@ object LocalLlamaRuntime {
                 appContext.assets.openFd(assetName).use { it.length }
             }.getOrDefault(-1L)
             val expectedLength = assetLength.takeIf { it > 0L }
-            val existingFileIsValid = modelFile.isFile && modelFile.canRead() &&
+            val existingFileIsValid = modelFile.isFile && modelFile.canRead() && (
                 if (expectedLength != null) modelFile.length() == expectedLength
                 else modelFile.length() in 1_000_000_000L..2_000_000_000L
+            )
 
             if (!existingFileIsValid) {
                 val minimumModelBytes = expectedLength ?: 1_000_000_000L
