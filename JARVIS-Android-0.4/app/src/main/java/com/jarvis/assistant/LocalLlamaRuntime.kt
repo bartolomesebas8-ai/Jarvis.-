@@ -91,7 +91,21 @@ object LocalLlamaRuntime {
             val appContext = context.applicationContext
             val modelsDir = modelsDirectory(appContext)
             val modelFile = File(modelsDir, assetName)
-            if (!modelFile.isFile || modelFile.length() < 1_000_000_000L) {
+            val assetLength = runCatching {
+                appContext.assets.openFd(assetName).use { it.length }
+            }.getOrDefault(-1L)
+            val expectedLength = assetLength.takeIf { it > 0L }
+            val existingFileIsValid = modelFile.isFile && modelFile.canRead() &&
+                if (expectedLength != null) modelFile.length() == expectedLength
+                else modelFile.length() in 1_000_000_000L..2_000_000_000L
+
+            if (!existingFileIsValid) {
+                val minimumModelBytes = expectedLength ?: 1_000_000_000L
+                val requiredSpace = minimumModelBytes + 128L * 1024L * 1024L
+                require(modelsDir.usableSpace >= requiredSpace) {
+                    "No hay espacio suficiente para preparar Qwen 3. Se necesitan aproximadamente ${minimumModelBytes / (1024 * 1024 * 1024)} GB libres adicionales. Libera espacio y vuelve a intentarlo."
+                }
+
                 val temporary = File(modelsDir, "$assetName.copying")
                 temporary.delete()
                 try {
@@ -100,11 +114,14 @@ object LocalLlamaRuntime {
                             input.copyTo(output, 1024 * 1024)
                         }
                     }
-                    require(temporary.length() in 1_000_000_000L..2_000_000_000L) {
-                        "El modelo incluido en JARVIS está incompleto. Reinstala la aplicación."
+                    require(
+                        temporary.length() in 1_000_000_000L..2_000_000_000L &&
+                            (expectedLength == null || temporary.length() == expectedLength)
+                    ) {
+                        "El archivo Qwen 3 incluido en JARVIS está incompleto o tiene un tamaño inesperado. Reinstala JARVIS."
                     }
                     if (modelFile.exists() && !modelFile.delete()) {
-                        throw IllegalStateException("No se pudo reemplazar la copia anterior del modelo.")
+                        throw IllegalStateException("No se pudo reemplazar la copia incompleta del modelo.")
                     }
                     if (!temporary.renameTo(modelFile)) {
                         throw IllegalStateException("No se pudo preparar el modelo local de JARVIS.")
@@ -193,10 +210,19 @@ object LocalLlamaRuntime {
                     it is InferenceEngine.State.Error
             }
         }
-        if (initialState is InferenceEngine.State.Error ||
-            initialState is InferenceEngine.State.ModelReady
-        ) {
-            engine.cleanUp()
+        when (initialState) {
+            is InferenceEngine.State.Error -> {
+                try {
+                    engine.cleanUp()
+                } catch (cleanupError: Exception) {
+                    throw IllegalStateException(
+                        "No se pudo inicializar el motor nativo de Qwen 3: ${initialState.exception.message ?: initialState.exception.javaClass.simpleName}",
+                        cleanupError
+                    )
+                }
+            }
+            is InferenceEngine.State.ModelReady -> engine.cleanUp()
+            else -> Unit
         }
 
         engine.loadModel(modelFile.absolutePath)
