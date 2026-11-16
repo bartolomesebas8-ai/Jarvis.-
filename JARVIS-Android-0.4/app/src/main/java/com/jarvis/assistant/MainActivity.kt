@@ -406,6 +406,8 @@ fun Jarvis() {
             } catch (error: Exception) {
                 llamaReady = false
                 localModelStatus = error.message ?: "No se pudo reanudar Qwen 3."
+                startupMessage = localModelStatus
+                firstStartRequired = true
             } finally {
                 llamaLoading = false
             }
