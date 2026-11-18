@@ -10,7 +10,7 @@ import java.util.Locale
  *
  * This is a deterministic intent + retrieval engine, not a trained language model.
  * It can answer from the app's own library and saved knowledge without downloading
- * Gemma, Qwen, or any other model. Free-form generation is a later milestone.
+ * any external model. Free-form generation is a later milestone.
  */
 object JarvisCore {
     const val VERSION = "0.1"
@@ -54,32 +54,32 @@ object JarvisCore {
         }
 
         if (webPages.isNotEmpty()) {
-            val sources = webPages.take(4).joinToString("\\n\\n") { page ->
-                "• ${page.title}\\n${page.extractedText.take(1100)}\\nFuente: ${page.url}"
+            val sources = webPages.take(4).joinToString("\n\n") { page ->
+                "• ${page.title}\n${page.extractedText.take(1100)}\nFuente: ${page.url}"
             }
-            return "Encontré información en las fuentes web disponibles. Este es un resumen de los resultados; todavía no equivale a una respuesta generada por un modelo de lenguaje:\\n\\n$sources"
+            return "Encontré información en las fuentes web disponibles. Este es un resumen de los resultados; todavía no equivale a una respuesta generada por un modelo de lenguaje:\n\n$sources"
         }
 
         val learned = runCatching { JarvisLearningEngine.search(context, query, 4) }.getOrDefault(emptyList())
         if (learned.isNotEmpty()) {
-            return "Consulté los conocimientos guardados y encontré información relacionada:\\n\\n" +
-                learned.joinToString("\\n\\n") { match ->
-                    "• ${match.record.title}\\n${match.excerpt}" +
-                        if (match.record.sourceUrl.isNotBlank()) "\\nFuente: ${match.record.sourceUrl}" else ""
+            return "Consulté los conocimientos guardados y encontré información relacionada:\n\n" +
+                learned.joinToString("\n\n") { match ->
+                    "• ${match.record.title}\n${match.excerpt}" +
+                        if (match.record.sourceUrl.isNotBlank()) "\nFuente: ${match.record.sourceUrl}" else ""
                 }
         }
 
         val docs = runCatching { KnowledgeLibrary.search(context, query, 4) }.getOrDefault(emptyList())
         if (docs.isNotEmpty()) {
-            return "Encontré fragmentos relacionados en tu Biblioteca:\\n\\n" +
-                docs.joinToString("\\n\\n") { "• ${it.document.name}\\n${it.excerpt}" }
+            return "Encontré fragmentos relacionados en tu Biblioteca:\n\n" +
+                docs.joinToString("\n\n") { "• ${it.document.name}\n${it.excerpt}" }
         }
 
         val continuity = recentConversation.lineSequence().filter { it.isNotBlank() }.takeLast(2).joinToString(" ")
         return buildString {
             append("Todavía no tengo una respuesta fiable para eso. Mi núcleo propio ya puede reconocer consultas, recuperar memoria y documentos, y organizar investigaciones, pero aún no tiene un modelo generativo que permita conversar libremente sobre cualquier tema.")
-            if (continuity.isNotBlank()) append("\\n\\nTengo presente el contexto reciente: ").append(continuity.take(240))
-            append("\\n\\nPuedes pedirme que busque el tema en Internet o guardar información para consultarla después.")
+            if (continuity.isNotBlank()) append("\n\nTengo presente el contexto reciente: ").append(continuity.take(240))
+            append("\n\nPuedes pedirme que busque el tema en Internet o guardar información para consultarla después.")
         }
     }
 }
