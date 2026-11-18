@@ -332,9 +332,9 @@ fun Jarvis() {
     var showSplash by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Qwen 3.") }
+    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Gemma 3 1B.") }
     val startupScope = rememberCoroutineScope()
-    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Qwen 3." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Gemma 3 1B." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
@@ -377,7 +377,7 @@ fun Jarvis() {
     }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
     val startupPrefs = remember { context.getSharedPreferences("jarvis_startup", android.content.Context.MODE_PRIVATE) }
-    var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("qwen_started_once", false)) }
+    var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("local_model_started_once", false)) }
     var startupLoading by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
@@ -395,7 +395,7 @@ fun Jarvis() {
     LaunchedEffect(firstStartRequired) {
         if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
             llamaLoading = true
-            localModelStatus = "Reanudando Qwen 3…"
+            localModelStatus = "Reanudando Gemma 3 1B…"
             try {
                 localModelStatus = LocalLlamaRuntime.loadBundled(
                     context,
@@ -405,7 +405,7 @@ fun Jarvis() {
                 llamaReady = true
             } catch (error: Exception) {
                 llamaReady = false
-                localModelStatus = error.message ?: "No se pudo reanudar Qwen 3."
+                localModelStatus = error.message ?: "No se pudo reanudar Gemma 3 1B."
                 startupMessage = localModelStatus
                 firstStartRequired = true
             } finally {
@@ -868,13 +868,13 @@ fun Jarvis() {
                     Spacer(Modifier.height(10.dp))
                     Text("PREPARACIÓN INICIAL", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     Spacer(Modifier.height(18.dp))
-                    Text("La primera vez, JARVIS necesita iniciar Qwen 3. Después entrarás directamente al chat.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Text("La primera vez, JARVIS necesita iniciar Gemma 3 1B. Después entrarás directamente al chat.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
                             if (!startupLoading) startupScope.launch {
                                 startupLoading = true
-                                startupMessage = "Iniciando Qwen 3. Esto puede tardar unos minutos…"
+                                startupMessage = "Iniciando Gemma 3 1B. Esto puede tardar unos minutos…"
                                 try {
                                     LocalLlamaRuntime.loadBundled(
                                         context,
@@ -882,12 +882,12 @@ fun Jarvis() {
                                         "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
                                     )
                                     llamaReady = true
-                                    startupPrefs.edit().putBoolean("qwen_started_once", true).apply()
+                                    startupPrefs.edit().putBoolean("local_model_started_once", true).apply()
                                     firstStartRequired = false
-                                    startupMessage = "Qwen 3 está listo."
+                                    startupMessage = "Gemma 3 1B está listo."
                                 } catch (error: Exception) {
                                     llamaReady = false
-                                    startupMessage = error.message ?: "No se pudo iniciar Qwen 3. Puedes volver a intentarlo."
+                                    startupMessage = error.message ?: "No se pudo iniciar Gemma 3 1B. Puedes volver a intentarlo."
                                 } finally {
                                     startupLoading = false
                                 }
@@ -999,7 +999,7 @@ fun Jarvis() {
                                 Column(Modifier.padding(12.dp)) {
                                     Text("MOTOR DE INTELIGENCIA ARTIFICIAL · JARVIS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                                     Spacer(Modifier.height(5.dp))
-                                    Text("Q4_K_M · GGUF · ${Qwen3ModelDownloader.MODEL_SIZE_LABEL}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Q4_K_M · GGUF · ${"aprox. 806 MB"}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                     Text("El modelo ya viene incluido en la instalación. JARVIS abre normalmente y solo prepara el motor cuando pulses este botón.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
                                     if (qwenDownloading || llamaLoading) {
                                         Spacer(Modifier.height(8.dp))
