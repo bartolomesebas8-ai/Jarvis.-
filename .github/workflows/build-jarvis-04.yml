@@ -38,11 +38,11 @@ jobs:
         run: |
           mkdir -p JARVIS-Android-0.4/app/src/main/assets
           curl --fail --location --retry 4 --retry-delay 5 \
-            "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf" \
+            "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf" \
             --output JARVIS-Android-0.4/app/src/main/assets/jarvis-model.gguf
           size=$(stat -c%s JARVIS-Android-0.4/app/src/main/assets/jarvis-model.gguf)
-          test "$size" -ge 1000000000
-          test "$size" -le 2000000000
+          test "$size" -ge 700000000
+          test "$size" -le 950000000
       - name: Construir APK
         run: gradle -p JARVIS-Android-0.4 :app:assembleDebug
       - name: Publicar APK
