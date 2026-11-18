@@ -332,9 +332,8 @@ fun Jarvis() {
     var showSplash by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    var startupMessage by remember { mutableStateOf("Pulsa Iniciar JARVIS para preparar Gemma 3 1B.") }
-    val startupScope = rememberCoroutineScope()
-    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; startupMessage = "Acceso concedido. Pulsa «Iniciar JARVIS» para iniciar Gemma 3 1B." } else { startupMessage = "Aún falta autorizar «Permitir administrar todos los archivos»." } }
+    var sharedStorageStatus by remember { mutableStateOf("") }
+    val allFilesAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { if (JarvisSharedStorage.hasAccess()) { runCatching { JarvisSharedStorage.ensureStructure(); JarvisSharedStorage.syncExistingData(context) }; sharedStorageStatus = "Acceso al almacenamiento concedido." } else { sharedStorageStatus = "Falta autorizar el acceso al almacenamiento compartido." } }
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val bg = Color(0xFF08111F)
@@ -376,43 +375,9 @@ fun Jarvis() {
         }
     }
     var pendingDeleteMemoryIndex by remember { mutableStateOf<Int?>(null) }
-    val startupPrefs = remember { context.getSharedPreferences("jarvis_startup", android.content.Context.MODE_PRIVATE) }
-    var firstStartRequired by remember { mutableStateOf(!startupPrefs.getBoolean("local_model_started_once", false)) }
-    var startupLoading by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var expandedSettingsFolder by remember { mutableStateOf("") }
-    var localModel by remember { mutableStateOf(LocalModelManager.load(context)) }
-    var storageReport by remember { mutableStateOf(LocalLlamaRuntime.storageReport(context, LocalModelManager.load(context)?.uri)) }
-    var localModelStatus by remember { mutableStateOf("Selecciona el motor de IA de JARVIS o importa un modelo GGUF compatible.") }
     val jarvisScope = rememberCoroutineScope()
-    var llamaReady by remember { mutableStateOf(LocalLlamaRuntime.isLoaded()) }
-    var llamaLoading by remember { mutableStateOf(false) }
-    var llamaBusy by remember { mutableStateOf(false) }
-    var qwenDownloaded by remember { mutableStateOf(true) }
-    var qwenDownloading by remember { mutableStateOf(false) }
-    var qwenDownloadProgress by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(firstStartRequired) {
-        if (!firstStartRequired && !LocalLlamaRuntime.isLoaded()) {
-            llamaLoading = true
-            localModelStatus = "Reanudando Gemma 3 1B…"
-            try {
-                localModelStatus = LocalLlamaRuntime.loadBundled(
-                    context,
-                    "jarvis-model.gguf",
-                    "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
-                )
-                llamaReady = true
-            } catch (error: Exception) {
-                llamaReady = false
-                localModelStatus = error.message ?: "No se pudo reanudar Gemma 3 1B."
-                startupMessage = localModelStatus
-                firstStartRequired = true
-            } finally {
-                llamaLoading = false
-            }
-        }
-    }
 
     // Back gesture: nested settings -> settings root -> chat, without closing JARVIS.
     BackHandler(enabled = !showSplash && showSettings) {
@@ -470,19 +435,6 @@ fun Jarvis() {
     val reminderPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         reminderPermissionGranted = granted
         if (!granted) codeGuardStatus = "Notificaciones no autorizadas. JARVIS seguirá funcionando; los recordatorios no mostrarán avisos."
-    }
-
-    val localModelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            try {
-                val selected = LocalModelManager.remember(context, uri)
-                localModel = selected
-                storageReport = LocalLlamaRuntime.storageReport(context, selected.uri)
-                localModelStatus = "Archivo seleccionado: ${selected.displayName}. Pulsa «Cargar modelo en JARVIS» para importarlo y abrirlo."
-            } catch (error: Exception) {
-                localModelStatus = error.message ?: "No se pudo seleccionar el modelo GGUF."
-            }
-        }
     }
 
     val knowledgePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -631,7 +583,7 @@ fun Jarvis() {
                     appendLine("• Permiso de notificaciones: ${if (reminderPermissionGranted) "Concedido" else "No concedido"}")
                     appendLine()
                     appendLine("LIMITACIONES Y COMPROBACIÓN:")
-                    appendLine("• IA local llama.cpp: ${if (llamaReady) "modelo cargado" else "sin modelo cargado"}.")
+                    appendLine("• Núcleo propio de JARVIS: activo; generación libre de lenguaje: en desarrollo.")
                     appendLine("• Este informe muestra datos registrados; no ejecuta una prueba técnica de cada módulo.")
                     appendLine("• No puedo asegurar que todo funcione correctamente sin realizar pruebas.")
                 }
@@ -729,11 +681,9 @@ fun Jarvis() {
                     }
                     }
             } else {
-                if (llamaReady) "__JARVIS_LOCAL_LLM__"
-                else KnowledgeLibrary.answerQuestion(context, msg)
-                    ?: "Tu información está guardada en la Biblioteca, pero para generar respuestas conversacionales inicia el motor de JARVIS en Ajustes > Inteligencia Artificial Local."
+                "__JARVIS_CORE__"
             }
-            if (reply == "__JARVIS_LOCAL_LLM__" || reply == "__JARVIS_WEB_RESEARCH__") {
+            if (reply == "__JARVIS_CORE__" || reply == "__JARVIS_WEB_RESEARCH__") {
                 val thinking = Line("JARVIS", "JARVIS está pensando…")
                 val updated = lines + Line("TÚ", msg) + thinking
                 lines = updated
@@ -751,7 +701,6 @@ fun Jarvis() {
                 val webQuery = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra|investiga en internet|investigar en internet|investiga en la web|investigar en la web)\\s*"), "")
                     .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("sobre ").removePrefix("acerca de ").take(240)
                 jarvisScope.launch {
-                    llamaBusy = true
                     try {
                     val webPages = if (webResearchRequested) runCatching {
                         JarvisFreeWebResearchProvider.search(webQuery, 4)
@@ -781,10 +730,7 @@ fun Jarvis() {
                         append("MENSAJE ACTUAL DEL USUARIO:\\n").append(msg)
                     }
     
-                        val rawAnswer = if (webResearchRequested && !llamaReady) {
-                            if (webPages.isEmpty()) "No encontré resultados en la fuente pública gratuita de Wikipedia en español. Prueba con otros términos o consulta una fuente especializada."
-                            else webPages.joinToString("\\n\\n") { page -> page.title + "\\n" + page.extractedText.take(1200) }
-                        } else OpenJarvisAndroidKernel.generate(enrichedPrompt)
+                        val rawAnswer = JarvisCore.respond(context, msg, recentContext, webPages)
                         val sourceList = if (webPages.isEmpty()) "" else "\\n\\nFuentes consultadas:\\n" + webPages.joinToString("\\n") { "• ${it.title}: ${it.url}" }
                         val memoryMatch = Regex("\\[JARVIS_MEMORY:\\s*(.{3,240}?)\\s*\\]", RegexOption.IGNORE_CASE).find(rawAnswer)
                         val answer = rawAnswer.replace(Regex("\\s*\\[JARVIS_MEMORY:\\s*.{3,240}?\\s*\\]", RegexOption.IGNORE_CASE), "").trim()
@@ -808,7 +754,6 @@ fun Jarvis() {
                         lines = latest
                         saveHistory(context, latest)
                     } finally {
-                        llamaBusy = false
                     }
                 }
             } else {
@@ -849,58 +794,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  3.13.2", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
-                }
-            }
-        } else if (firstStartRequired) {
-            Box(
-                Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF102B43), bg, Color(0xFF050A12)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth().padding(28.dp)
-                ) {
-                    HolographicOrb(size = 150.dp)
-                    Spacer(Modifier.height(24.dp))
-                    Text("J.A.R.V.I.S.", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
-                    Spacer(Modifier.height(10.dp))
-                    Text("NÚCLEO DE INTELIGENCIA", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                    Spacer(Modifier.height(18.dp))
-                    Text("Preparando el núcleo local de JARVIS. Tus conversaciones y conocimientos permanecen en tu dispositivo.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = {
-                            if (!startupLoading) startupScope.launch {
-                                startupLoading = true
-                                startupMessage = "Iniciando Gemma 3 1B. Esto puede tardar unos minutos…"
-                                try {
-                                    LocalLlamaRuntime.loadBundled(
-                                        context,
-                                        "jarvis-model.gguf",
-                                        "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Responde en español cuando el usuario escriba en español. Sé natural, claro, atento y útil. Usa el contexto y los recuerdos disponibles sin inventar datos."
-                                    )
-                                    llamaReady = true
-                                    startupPrefs.edit().putBoolean("local_model_started_once", true).apply()
-                                    firstStartRequired = false
-                                    startupMessage = "Gemma 3 1B está listo."
-                                } catch (error: Exception) {
-                                    llamaReady = false
-                                    startupMessage = error.message ?: "No se pudo iniciar Gemma 3 1B. Puedes volver a intentarlo."
-                                } finally {
-                                    startupLoading = false
-                                }
-                            }
-                        },
-                        enabled = !startupLoading,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (startupLoading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        else Text("Iniciar JARVIS")
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Text(startupMessage, color = if (startupLoading) cyan else Color(0xFF9CB4C7), fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text("JARVIS  •  3.13.3", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else {
@@ -986,136 +880,20 @@ fun Jarvis() {
                         )
                         Spacer(Modifier.height(12.dp))
                     }
-                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("✧", "INTELIGENCIA ARTIFICIAL LOCAL", "Preparación de modelos GGUF y llama.cpp", expandedSettingsFolder == "ai", { expandedSettingsFolder = if (expandedSettingsFolder == "ai") "" else "ai" })
+                    if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("✧", "NÚCLEO PROPIO DE JARVIS", "Conversación, memoria e investigación", expandedSettingsFolder == "core", { expandedSettingsFolder = if (expandedSettingsFolder == "core") "" else "core" })
                     Spacer(Modifier.height(9.dp))
-                    if (expandedSettingsFolder == "ai") {
-                    Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("MODELOS LOCALES · GGUF", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Text("JARVIS utiliza llama.cpp para ejecutar modelos GGUF localmente. Puedes instalar el modelo recomendado directamente o importar otro archivo compatible.", color = Color(0xFFB8C9D8), fontSize = 12.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp)) {
-                                    Text("MOTOR DE INTELIGENCIA ARTIFICIAL · JARVIS", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                                    Spacer(Modifier.height(5.dp))
-                                    Text("Q4_K_M · GGUF · ${"aprox. 806 MB"}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("El modelo ya viene incluido en la instalación. JARVIS abre normalmente y solo prepara el motor cuando pulses este botón.", color = Color(0xFFB8C9D8), fontSize = 11.sp)
-                                    if (qwenDownloading || llamaLoading) {
-                                        Spacer(Modifier.height(8.dp))
-                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = cyan)
-                                        Text("Preparando el motor local…", color = cyan, fontSize = 11.sp)
-                                    }
-                                    Spacer(Modifier.height(10.dp))
-                                    Button(
-                                        onClick = {
-                                            if (!qwenDownloading && !llamaLoading && !llamaBusy) {
-                                                jarvisScope.launch {
-                                                    qwenDownloading = true
-                                                    llamaLoading = true
-                                                    try {
-                                                        localModelStatus = "Preparando el modelo incluido y activando JARVIS…"
-                                                        localModelStatus = LocalLlamaRuntime.loadBundled(
-                                                            context,
-                                                            "jarvis-model.gguf",
-                                                            "Eres JARVIS, el asistente de inteligencia artificial de esta aplicación. Tu identidad y nombre visible son siempre JARVIS. Responde en español cuando el usuario escriba en español. Trata al usuario con respeto, naturalidad, confianza y atención, como un asistente personal que conversa con él y no como un buscador. No te limites a devolver datos: responde de manera humana y fluida, comenta brevemente cuando aporte algo, y cuando encaje haz una pregunta de seguimiento genuina para mantener la conversación, sin convertir cada respuesta en un interrogatorio. Por ejemplo, si pregunta por su color favorito y el dato disponible es azul, puedes decir «A ti te gusta el azul, ¿verdad? ¿Qué es lo que más te gusta de ese color?». Si comparte algo personal, úsalo con criterio en el contexto actual y en futuras conversaciones solo cuando esté disponible en los recuerdos o datos guardados; no afirmes que guardaste algo si no se ejecutó una función de guardado. Ajusta la longitud: normalmente una o dos frases para asuntos sencillos, más detalle cuando la situación lo necesite. Evita respuestas secas, frases prefabricadas repetitivas, halagos exagerados y preguntas de seguimiento forzadas. Puedes tener una personalidad coherente, cálida, curiosa y servicial, pero no afirmes tener conciencia, sentimientos humanos ni experiencias propias. No inventes datos. Razona cuidadosamente, utiliza el contexto y los recuerdos que se adjunten, reconoce tus límites y no afirmes haber realizado acciones que no ejecutaste."
-                                                        )
-                                                        llamaReady = true
-                                                    } catch (error: Exception) {
-                                                        llamaReady = false
-                                                        localModelStatus = error.message ?: "No se pudo iniciar el motor local de JARVIS."
-                                                    } finally {
-                                                        qwenDownloading = false
-                                                        llamaLoading = false
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        enabled = !qwenDownloading && !llamaLoading && !llamaBusy,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(if (qwenDownloading || llamaLoading) "Iniciando JARVIS…" else "Iniciar JARVIS")
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp)) {
-                                    Text("ALMACENAMIENTO DEL MODELO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Spacer(Modifier.height(6.dp))
-                                    Text(storageReport, color = Color(0xFFB8C9D8), fontSize = 11.sp, lineHeight = 17.sp)
-                                    Spacer(Modifier.height(8.dp))
-                                    TextButton(
-                                        onClick = {
-                                            storageReport = LocalLlamaRuntime.storageReport(context, localModel?.uri)
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("Actualizar diagnóstico", color = cyan)
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            if (localModel != null) {
-                                Text("MODELO SELECCIONADO", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text(localModel!!.displayName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Ubicación guardada mediante el selector seguro de Android.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
-                                TextButton(onClick = {
-                                    LocalModelManager.clear(context)
-                                    localModel = null
-                                    storageReport = LocalLlamaRuntime.storageReport(context)
-                                    localModelStatus = "No hay ningún archivo GGUF seleccionado."
-                                }) { Text("Quitar selección", color = Color(0xFFFFA0A0)) }
-                            } else {
-                                Text("Todavía no has seleccionado un archivo GGUF.", color = Color(0xFF9CB4C7), fontSize = 12.sp)
-                            }
-                            Button(onClick = { localModelPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (localModel == null) "Seleccionar archivo GGUF" else "Cambiar archivo GGUF")
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = {
-                                    val selected = localModel
-                                    if (selected != null && !llamaLoading) {
-                                        jarvisScope.launch {
-                                            llamaLoading = true
-                                            localModelStatus = "Preparando el modelo GGUF y cargando llama.cpp. La primera carga puede tardar."
-                                            try {
-                                                localModelStatus = LocalLlamaRuntime.load(
-                                                    context,
-                                                    selected.uri,
-                                                    selected.displayName,
-                                                    "Eres JARVIS, un asistente local útil, claro y honesto. Responde en español cuando el usuario escriba en español. Trata al usuario con respeto, naturalidad y confianza, como un asistente personal que conversa y no como un buscador. No te limites a devolver datos: comenta brevemente cuando aporte algo y, cuando encaje, haz una pregunta de seguimiento genuina para mantener la conversación. Si comparte algo personal, úsalo con criterio cuando esté disponible en los recuerdos o datos guardados; nunca afirmes que guardaste algo si no se ejecutó una función de guardado. Mantén una personalidad coherente, cálida, curiosa y servicial. Normalmente usa una o dos frases para asuntos sencillos, ampliando cuando haga falta. Evita respuestas secas, halagos exagerados y preguntas forzadas. No afirmes tener conciencia ni sentimientos humanos. No inventes información. Usa los recuerdos y el contexto que acompañan cada mensaje, reconoce cuando no sabes algo y mantén las respuestas útiles y respetuosas."
-                                                )
-                                                llamaReady = true
-                                            } catch (error: Exception) {
-                                                llamaReady = false
-                                                localModelStatus = error.message ?: "No se pudo cargar el modelo GGUF."
-                                            } finally {
-                                                llamaLoading = false
-                                            }
-                                        }
-                                    }
-                                },
-                                enabled = localModel != null && !llamaLoading,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(if (llamaLoading) "Cargando modelo…" else if (llamaReady) "Volver a cargar modelo" else "Cargar modelo en JARVIS")
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Surface(color = Color(0xFF0D1A29), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(10.dp)) {
-                                    Text("ESTADO DEL MOTOR", color = cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    Text(if (llamaReady) "llama.cpp está cargado y el modelo local está listo para responder en el chat." else "Motor nativo llama.cpp integrado. Selecciona un GGUF y pulsa Cargar modelo en JARVIS.", color = if (llamaReady) Color(0xFF8BE0A4) else Color(0xFFFFD28A), fontSize = 12.sp)
-                                }
-                            }
-                            if (localModelStatus.isNotBlank()) {
+                    if (expandedSettingsFolder == "core") {
+                        Surface(color = panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("JARVIS CORE · 0.1", color = cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(8.dp))
-                                Text(localModelStatus, color = Color(0xFF9CB4C7), fontSize = 11.sp)
+                                Text("El núcleo propio administra la conversación, consulta la memoria y la biblioteca, recupera conocimientos y puede investigar mediante fuentes web gratuitas. No necesita descargar modelos externos.", color = Color(0xFFB8C9D8), fontSize = 13.sp)
+                                Spacer(Modifier.height(10.dp))
+                                Text("Estado: núcleo de reglas y recuperación activo. La generación libre de lenguaje todavía requiere desarrollar un modelo propio o conectar un proveedor compatible.", color = Color(0xFFFFD28A), fontSize = 12.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Los conocimientos se guardan localmente. La información externa conserva su fuente y no se considera automáticamente verificada.", color = Color(0xFF9CB4C7), fontSize = 11.sp)
                             }
-                            Text("La primera carga copia el archivo a los datos privados de JARVIS y necesita espacio libre adicional. El modelo original de PocketPal no se modifica. La inferencia se ejecuta localmente.", color = Color(0xFF9CB4C7), fontSize = 10.sp)
                         }
-                    }
                     }
                     if (expandedSettingsFolder.isBlank()) SettingsGroupHeader("◈", "MEMORIA Y CONOCIMIENTO", "Recuerdos, documentos y búsqueda local", expandedSettingsFolder == "memory", { expandedSettingsFolder = if (expandedSettingsFolder == "memory") "" else "memory" })
                     Spacer(Modifier.height(9.dp))
