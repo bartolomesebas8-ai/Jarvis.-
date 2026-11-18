@@ -830,7 +830,7 @@ fun Jarvis() {
                                     Text("MEMORIA LOCAL ACTIVA", color = Color(0xFFB8C9D8), fontSize = 9.sp, letterSpacing = 0.7.sp)
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text("VERSIÓN 3.7", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
+                                Text("VERSIÓN 3.13.3", color = Color(0xFF7895AA), fontSize = 9.sp, letterSpacing = 1.1.sp)
                             }
                             if (showSettings) {
                                 TextButton(onClick = { showSettings = false }) { Text("‹ Chat", color = cyan, fontSize = 12.sp) }
@@ -870,7 +870,7 @@ fun Jarvis() {
                     } else {
                         Text(
                             when (expandedSettingsFolder) {
-                                "ai" -> "INTELIGENCIA ARTIFICIAL LOCAL"
+                                "core" -> "NÚCLEO PROPIO DE JARVIS"
                                 "memory" -> "MEMORIA Y CONOCIMIENTO"
                                 "tools" -> "PERSONALIZACIÓN Y HERRAMIENTAS"
                                 "productivity" -> "PRODUCTIVIDAD Y PLANIFICACIÓN"
