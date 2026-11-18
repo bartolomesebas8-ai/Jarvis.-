@@ -208,7 +208,10 @@ object JarvisLearningEngine {
 
     /** Relevant excerpts that can be appended to a conversation prompt. */
     fun contextFor(context: Context, query: String, maxChars: Int = 6000): String {
+        // Teacher handoff answers are stored for explicit review, never injected into
+        // automatic model context until the user has independently approved them.
         val matches = search(context, query, 6)
+            .filter { it.record.sourceType != "teacher_unverified" }
         if (matches.isEmpty()) return ""
         return buildString {
             appendLine("CONOCIMIENTOS APRENDIDOS Y GUARDADOS (usa solo lo pertinente; conserva las fuentes):")
