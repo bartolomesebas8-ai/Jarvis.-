@@ -849,7 +849,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  3.13", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  3.13.2", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else if (firstStartRequired) {
@@ -866,9 +866,9 @@ fun Jarvis() {
                     Spacer(Modifier.height(24.dp))
                     Text("J.A.R.V.I.S.", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
                     Spacer(Modifier.height(10.dp))
-                    Text("PREPARACIÓN INICIAL", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Text("NÚCLEO DE INTELIGENCIA", color = cyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     Spacer(Modifier.height(18.dp))
-                    Text("La primera vez, JARVIS necesita iniciar Gemma 3 1B. Después entrarás directamente al chat.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Text("Preparando el núcleo local de JARVIS. Tus conversaciones y conocimientos permanecen en tu dispositivo.", color = Color(0xFFB8C9D8), fontSize = 14.sp, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(20.dp))
                     Button(
                         onClick = {
