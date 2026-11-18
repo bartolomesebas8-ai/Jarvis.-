@@ -97,14 +97,14 @@ object LocalLlamaRuntime {
             val expectedLength = assetLength.takeIf { it > 0L }
             val existingFileIsValid = modelFile.isFile && modelFile.canRead() && (
                 if (expectedLength != null) modelFile.length() == expectedLength
-                else modelFile.length() in 1_000_000_000L..2_000_000_000L
+                else modelFile.length() in 700_000_000L..950_000_000L
             )
 
             if (!existingFileIsValid) {
-                val minimumModelBytes = expectedLength ?: 1_000_000_000L
+                val minimumModelBytes = expectedLength ?: 700_000_000L
                 val requiredSpace = minimumModelBytes + 128L * 1024L * 1024L
                 require(modelsDir.usableSpace >= requiredSpace) {
-                    "No hay espacio suficiente para preparar Qwen 3. Se necesitan aproximadamente ${minimumModelBytes / (1024 * 1024 * 1024)} GB libres adicionales. Libera espacio y vuelve a intentarlo."
+                    "No hay espacio suficiente para preparar Gemma 3 1B. Se necesitan aproximadamente ${minimumModelBytes / (1024 * 1024 * 1024)} GB libres adicionales. Libera espacio y vuelve a intentarlo."
                 }
 
                 val temporary = File(modelsDir, "$assetName.copying")
@@ -116,10 +116,10 @@ object LocalLlamaRuntime {
                         }
                     }
                     require(
-                        temporary.length() in 1_000_000_000L..2_000_000_000L &&
+                        temporary.length() in 700_000_000L..950_000_000L &&
                             (expectedLength == null || temporary.length() == expectedLength)
                     ) {
-                        "El archivo Qwen 3 incluido en JARVIS está incompleto o tiene un tamaño inesperado. Reinstala JARVIS."
+                        "El archivo Gemma 3 1B incluido en JARVIS está incompleto o tiene un tamaño inesperado. Reinstala JARVIS."
                     }
                     if (modelFile.exists() && !modelFile.delete()) {
                         throw IllegalStateException("No se pudo reemplazar la copia incompleta del modelo.")
@@ -217,7 +217,7 @@ object LocalLlamaRuntime {
                     engine.cleanUp()
                 } catch (cleanupError: Exception) {
                     throw IllegalStateException(
-                        "No se pudo inicializar el motor nativo de Qwen 3: ${initialState.exception.message ?: initialState.exception.javaClass.simpleName}",
+                        "No se pudo inicializar el motor nativo de Gemma 3 1B: ${initialState.exception.message ?: initialState.exception.javaClass.simpleName}",
                         cleanupError
                     )
                 }
