@@ -75,7 +75,7 @@ object JarvisCore {
                 docs.joinToString("\n\n") { "• ${it.document.name}\n${it.excerpt}" }
         }
 
-        val continuity = recentConversation.lineSequence().filter { it.isNotBlank() }.takeLast(2).joinToString(" ")
+        val continuity = recentConversation.lineSequence().filter { it.isNotBlank() }.toList().takeLast(2).joinToString(" ")
         return buildString {
             append("Todavía no tengo una respuesta fiable para eso. Mi núcleo propio ya puede reconocer consultas, recuperar memoria y documentos, y organizar investigaciones, pero aún no tiene un modelo generativo que permita conversar libremente sobre cualquier tema.")
             if (continuity.isNotBlank()) append("\n\nTengo presente el contexto reciente: ").append(continuity.take(240))
