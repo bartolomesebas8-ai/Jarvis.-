@@ -3,11 +3,9 @@ package com.jarvis.assistant
 import android.content.Context
 
 /**
- * Android-native integration boundary inspired by OpenJarvis.
- *
- * This deliberately reuses JARVIS' existing llama.cpp runtime, memory,
- * learning store and web research provider. It does not embed the upstream
- * Python runtime or claim autonomous model-weight training.
+ * Stable public boundary for JARVIS' independent Android core.
+ * The core uses deterministic intent handling and local retrieval; it does not
+ * require a downloaded GGUF model or a native inference runtime.
  */
 data class OpenJarvisAndroidHealth(
     val architecture: String,
@@ -20,24 +18,23 @@ data class OpenJarvisAndroidHealth(
 )
 
 object OpenJarvisAndroidKernel {
-    const val ARCHITECTURE_VERSION = "OpenJarvis-inspired Android kernel 0.1"
+    const val ARCHITECTURE_VERSION = "JARVIS Core 0.1"
 
-    /** Engine primitive: all local inference passes through one stable boundary. */
-    suspend fun generate(prompt: String, maxTokens: Int = 384): String {
-        require(prompt.isNotBlank()) { "El mensaje para el motor está vacío." }
-        return LocalLlamaRuntime.generate(prompt, maxTokens)
-    }
+    fun respond(
+        context: Context,
+        message: String,
+        recentConversation: String = "",
+        webPages: List<JarvisResearchPage> = emptyList()
+    ): String = JarvisCore.respond(context, message, recentConversation, webPages)
 
-    /** Reports the state of the Android components mapped to OpenJarvis primitives. */
     fun health(context: Context): OpenJarvisAndroidHealth {
         val appContext = context.applicationContext
         val learning = JarvisLearningEngine.stats(appContext)
         val documents = runCatching { KnowledgeLibrary.list(appContext).size }.getOrDefault(0)
-
         return OpenJarvisAndroidHealth(
             architecture = ARCHITECTURE_VERSION,
-            localEngineReady = LocalLlamaRuntime.isLoaded(),
-            activeModelPath = LocalLlamaRuntime.loadedPath(),
+            localEngineReady = true,
+            activeModelPath = null,
             learnedRecords = learning.records,
             learningSessions = learning.sessions,
             importedDocuments = documents,
