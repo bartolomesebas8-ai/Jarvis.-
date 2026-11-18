@@ -586,6 +586,8 @@ fun Jarvis() {
             val investigationIntent = lower.startsWith("investiga mis archivos") || lower.startsWith("investigar mis archivos") || lower.startsWith("investiga mi biblioteca") || lower.startsWith("revisa mis archivos")
             val memorySaveIntent = lower.startsWith("guardar en memoria:") || lower.startsWith("recuerda esto:")
             val learningSaveIntent = lower.startsWith("guardar aprendizaje:") || lower.startsWith("aprende esto:")
+            val teacherIntent = lower.startsWith("consulta al profesor:") || lower.startsWith("pregunta al profesor:") || lower.startsWith("consulta a chatgpt:")
+            val teacherAnswerIntent = lower.startsWith("guardar respuesta del profesor:")
             val taskCreateIntent = lower.startsWith("crear tarea:") || lower.startsWith("agregar tarea:") || lower.startsWith("añadir tarea:")
             val taskListIntent = lower == "mis tareas" || lower == "listar tareas" || lower == "ver tareas" || lower == "tareas pendientes"
             val taskCompleteIntent = lower.startsWith("completar tarea:") || lower.startsWith("marcar tarea:")
@@ -633,6 +635,12 @@ fun Jarvis() {
                     appendLine("• Este informe muestra datos registrados; no ejecuta una prueba técnica de cada módulo.")
                     appendLine("• No puedo asegurar que todo funcione correctamente sin realizar pruebas.")
                 }
+            } else if (teacherIntent) {
+                val question = msg.substringAfter(":").trim()
+                if (question.isBlank()) "Escribe la pregunta después de «consulta al profesor:»."
+                else if (runCatching { JarvisTeacherBridge.open(context, question) }.getOrDefault(false)) {
+                    "Abrí el envío de consulta al profesor. En ChatGPT, envía la pregunta y luego vuelve a JARVIS. Cuando tengas la respuesta, escribe «guardar respuesta del profesor:» y pega el texto. La guardaré como no verificada hasta que la revises."
+                } else "No pude abrir el selector para compartir la consulta. Comprueba que haya una aplicación compatible instalada."
             } else if (taskCreateIntent) {
                 val title = msg.substringAfter(":").trim()
                 if (title.isBlank()) "Escribe el nombre después de «crear tarea:»." else if (title.length > 160) "El nombre de la tarea no puede superar 160 caracteres." else {
@@ -672,6 +680,19 @@ fun Jarvis() {
                     val saved = JarvisLearningEngine.addKnowledge(context, title, "Conocimiento aportado por el usuario", body, sourceType = "user", confidence = 1.0)
                     "Guardé este conocimiento en la biblioteca permanente de JARVIS: «" + saved.title + "». Podré recuperarlo en conversaciones futuras."
                 } catch (error: Exception) { error.message ?: "No se pudo guardar el conocimiento." }
+            }
+            else if (teacherAnswerIntent) {
+                val body = msg.substringAfter(":").trim()
+                if (body.isBlank()) "Pega la respuesta del profesor después de los dos puntos."
+                else try {
+                    val title = body.lineSequence().first().take(120).ifBlank { "Respuesta de profesor" }
+                    val saved = JarvisLearningEngine.addKnowledge(
+                        context, title, "Respuesta de profesor", body,
+                        sourceType = "teacher_unverified", sourceTitle = "Respuesta externa aportada por el usuario",
+                        confidence = 0.55
+                    )
+                    "Guardé la respuesta como conocimiento NO VERIFICADO: «${saved.title}». Revísala antes de tratarla como correcta."
+                } catch (error: Exception) { error.message ?: "No se pudo guardar la respuesta del profesor." }
             }
             else if (lower.startsWith("busca en lo aprendido")) {
                 val query = msg.substringAfter("aprendido", "").trim().removePrefix("sobre").trim()
@@ -727,7 +748,7 @@ fun Jarvis() {
                 val directProfileFact = runCatching { KnowledgeLibrary.answerQuestion(context, msg) }.getOrNull().orEmpty()
                 val learningContext = runCatching { JarvisLearningEngine.contextFor(context, msg) }.getOrDefault("")
                 val webResearchRequested = reply == "__JARVIS_WEB_RESEARCH__"
-                val webQuery = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra)\\s*"), "")
+                val webQuery = msg.replace(Regex("(?i)^(busca|buscar|consulta|encuentra|investiga en internet|investigar en internet|investiga en la web|investigar en la web)\\s*"), "")
                     .trim().removePrefix("en internet ").removePrefix("en la web ").removePrefix("internet ").removePrefix("sobre ").removePrefix("acerca de ").take(240)
                 jarvisScope.launch {
                     llamaBusy = true
@@ -828,7 +849,7 @@ fun Jarvis() {
                     Spacer(Modifier.height(12.dp))
                     Text("Preparando tu espacio…", color = Color(0xFF9CB4C7), fontSize = 12.sp)
                     Spacer(Modifier.height(34.dp))
-                    Text("JARVIS  •  3.7", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
+                    Text("JARVIS  •  3.13", color = Color(0xFF60798D), fontSize = 10.sp, letterSpacing = 1.5.sp)
                 }
             }
         } else if (firstStartRequired) {
