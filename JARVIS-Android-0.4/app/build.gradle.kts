@@ -15,7 +15,7 @@ android {
             cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=ON") }
         }
         targetSdk = 35
-        versionCode = 43
+        versionCode = 44
         versionName = "3.13"
     }
     ndkVersion = "29.0.13113456"
@@ -23,7 +23,6 @@ android {
         cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" }
     }
     buildFeatures { compose = true }
-    androidResources { noCompress += "gguf" }
     androidResources { noCompress += "gguf" }
     chaquopy { defaultConfig { version = "3.12" } }
     compileOptions {
