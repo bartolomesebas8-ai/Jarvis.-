@@ -11,9 +11,10 @@ android {
     defaultConfig {
         applicationId = "com.jarvis.assistant"
         minSdk = 33
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         targetSdk = 35
-        versionCode = 49
-        versionName = "3.13.5"
+        versionCode = 50
+        versionName = "3.13.6"
     }
     buildFeatures { compose = true }
     chaquopy { defaultConfig { version = "3.12" } }
