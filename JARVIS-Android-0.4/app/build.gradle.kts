@@ -4,26 +4,18 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.chaquo.python")
 }
+
 android {
     namespace = "com.jarvis.assistant"
     compileSdk = 35
     defaultConfig {
         applicationId = "com.jarvis.assistant"
         minSdk = 33
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
-        externalNativeBuild {
-            cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DBUILD_SHARED_LIBS=ON") }
-        }
         targetSdk = 35
-        versionCode = 48
-        versionName = "3.13.4"
-    }
-    ndkVersion = "29.0.13113456"
-    externalNativeBuild {
-        cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.31.6" }
+        versionCode = 49
+        versionName = "3.13.5"
     }
     buildFeatures { compose = true }
-    androidResources { noCompress += "gguf" }
     chaquopy { defaultConfig { version = "3.12" } }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -31,6 +23,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.activity:activity-compose:1.10.0")

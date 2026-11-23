@@ -30,10 +30,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Preparar Android SDK, NDK y CMake
-        uses: android-actions/setup-android@v3
-        with:
-          packages: "ndk;29.0.13113456 cmake;3.31.6"
       - name: Construir APK
         run: gradle -p JARVIS-Android-0.4 :app:assembleDebug
       - name: Publicar APK
